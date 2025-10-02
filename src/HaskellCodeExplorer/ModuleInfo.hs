@@ -8,6 +8,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeApplications #-}
 
 module HaskellCodeExplorer.ModuleInfo
   ( createModuleInfo
@@ -15,6 +16,7 @@ module HaskellCodeExplorer.ModuleInfo
   ) where
 
 import qualified Data.Generics.Uniplate.Data as U
+import GHC.Unit.State (UnitState)
 import Control.Monad.State.Strict (execState,evalState,get,put,State)
 import qualified Data.Aeson as Aeson
 import Data.Aeson.Text(encodeToLazyText)
@@ -23,20 +25,33 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntervalMap.Strict as IVM
+import           GHC.Hs.Binds (HsBindLR, LHsBindLR)
 import qualified Data.List as L hiding (span)
 import Data.Maybe (fromMaybe, mapMaybe)
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-import HsExtension (GhcRn)
-#endif
+import GHC.Hs.Extension (GhcRn)
+import GHC.Types.SrcLoc
+  ( SrcSpan(..)      -- 关键：带入 RealSrcSpan/UnhelpfulSpan 构造子
+  , RealSrcSpan
+  , srcSpanStartLine
+  , srcSpanStartCol
+  )
 import qualified Data.Set as S
+import           GHC.Hs.Utils (collectHsBindBinders, CollectFlag(..))
 import qualified Data.Text as T
+import GHC.Driver.Env(hsc_unit_env, HscEnv)
+import GHC.Unit.Env (ue_units)
 import qualified Data.Text.Encoding as TE
+import           GHC.Types.Unique.DFM           ( eltsUDFM )
 import Data.Text.Lazy (toStrict)
 import Documentation.Haddock.Types (DocH)
-import DynFlags(DynFlags)
+import GHC.Driver.Session
+  ( DynFlags
+  , targetPlatform )
 import GHC
   ( GenLocated(..)
   , ModSummary
+  , locA
+  , getLocA
   , ModuleInfo
   , ModuleName
   , SrcSpan
@@ -56,63 +71,61 @@ import GHC
   , tm_typechecked_source
   , unLoc
   )
-import Type(expandTypeSynonyms)
-import TyCon (isFamInstTyCon,tyConName)
+import GHC.Core.Type(expandTypeSynonyms)
+import GHC.Core.TyCon (isFamInstTyCon,tyConName)
 import HaskellCodeExplorer.AST.RenamedSource
 import HaskellCodeExplorer.AST.TypecheckedSource
 import HaskellCodeExplorer.GhcUtils
 import HaskellCodeExplorer.Preprocessor (createSourceCodeTransformation)
 import qualified HaskellCodeExplorer.Types as HCE
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-import HsBinds (HsBindLR)
-#endif
-import HsDecls
+import GHC.Hs.Binds (HsBindLR)
+import GHC.Hs.Decls
   ( ForeignDecl(..)
   , HsDecl(..)
+  , LForeignDecl(..)
+  , LInstDecl(..)
+  , LTyClDecl(..)
+  , LHsDecl
   , HsGroup(..)
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
   , InstDecl
   , TyClDecl
-#endif
   , InstDecl(..)
   , group_tyclds
   , tyClDeclLName
   , tcdName
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,2,0)
   , hsGroupInstDecls
-#endif
   )
-import HsDoc(HsDocString)
-import HsImpExp (IE(..), ImportDecl(..))
-import HsUtils(collectHsBindBinders)
-import HscTypes
+import GHC.Hs.Doc
+  ( HsDocString
+  , LHsDoc(..)
+  , WithHsDocIdentifiers(..) )
+import GHC.Hs.ImpExp (IE(..), ImportDecl(..), ideclImplicit)
+import GHC.Hs.Utils(collectHsBindBinders)
+import GHC.Unit.External
   ( ExternalPackageState
-  , HomePackageTable
-  , TypeEnv
   , eps_PTE
-  , eps_inst_env
-  , hm_details
-  , md_types
+  , eps_inst_env)
+import GHC.Unit.Home.ModInfo
+  ( HomePackageTable
+  , hm_details)
+import GHC.Unit.Module.ModDetails
+  ( md_types )
+import GHC.Types.TypeEnv
+  ( TypeEnv
   , mkTypeEnv
-  , typeEnvElts
-  )
-import InstEnv (InstEnvs(..), is_dfun)
-import Module(Module(..))
-import Name (Name, OccName, getSrcSpan, nameOccName, nameSrcSpan, nameUnique)
+  , typeEnvElts )
+import GHC.Core.InstEnv (InstEnvs(..), is_dfun)
+import GHC.Unit.Module(Module(..), moduleName)
+import GHC.Types.Name (Name, OccName, getSrcSpan, nameOccName, nameSrcSpan, nameUnique)
 import Prelude hiding(id,span)
-import RdrName(GlobalRdrEnv)
-import SrcLoc (isOneLineSpan)
-import TcRnTypes (tcVisibleOrphanMods, tcg_inst_env, tcg_rdr_env, tcg_type_env)
+import GHC.Types.Name.Reader(GlobalRdrEnv)
+import GHC.Types.SrcLoc (isOneLineSpan, RealSrcSpan(..), srcSpanStartLine, srcSpanStartCol)
+import GHC.Tc.Types (tcVisibleOrphanMods, tcg_inst_env, tcg_rdr_env, tcg_type_env)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,2,0)
-import UniqDFM (eltsUDFM)
-#else
-import UniqFM (eltsUFM)
-#endif
-import Unique (getKey)
-import Var (varName, varType,Id)
-import VarEnv (emptyTidyEnv)
+import GHC.Types.Unique (getKey)
+import GHC.Types.Var (varName, varType,Id)
+import GHC.Types.Var.Env (emptyTidyEnv)
 
 type ModuleDependencies
    = ( HM.HashMap HCE.HaskellFilePath HCE.HaskellModulePath
@@ -127,17 +140,18 @@ type ModuleGhcData
      , ModSummary)
 
 createModuleInfo ::
-     ModuleDependencies -- ^ Modules that have already been indexed
+  ModuleDependencies -- ^ Modules that have already been indexed
   -> ModuleGhcData -- ^ Data types from GHC
   -> HCE.HaskellModulePath -- ^ Current module path
   -> HCE.PackageId -- ^ Current package id
   -> HCE.ComponentId -- ^ Current build component id
   -> (T.Text, HCE.SourceCodePreprocessing) -- ^ Source code
+  -> HscEnv
   -> (HCE.ModuleInfo, ModuleDependencies, [TypeError])
-createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule, homePackageTable, externalPackageState, modSum) modulePath currentPackageId compId (originalSourceCode, sourceCodePreprocessing) =
+createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule, homePackageTable, externalPackageState, modSum) modulePath currentPackageId compId (originalSourceCode, sourceCodePreprocessing) hscEnv=
   let globalRdrEnv = tcg_rdr_env . fst . tm_internals_ $ typecheckedModule
       modInfo = moduleInfo typecheckedModule
-      (Just (hsGroup, _, _, _)) = renamedSource typecheckedModule
+      (Just (hsGroup, _, _, _, _)) = renamedSource typecheckedModule
       exportedNamesSet = S.fromList $ modInfoExportsWithSelectors modInfo
       --------------------------------------------------------------------------------
       -- Preprocessed source
@@ -156,11 +170,7 @@ createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule,
       currentModuleTyThings = typeEnvElts $ tcg_type_env tcGblEnv
       homePackageTyThings =
         concatMap (typeEnvElts . md_types . hm_details) $
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,2,0)
         eltsUDFM homePackageTable
-#else
-        eltsUFM homePackageTable
-#endif
       externalPackagesTyThings = typeEnvElts $ eps_PTE externalPackageState
       typeEnv =
         mkTypeEnv
@@ -178,6 +188,7 @@ createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule,
           currentModuleTyThings
       (defSites, allNames) =
         createDefinitionSiteMap
+          unitState
           flags
           currentPackageId
           compId
@@ -198,6 +209,7 @@ createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule,
       --------------------------------------------------------------------------------
       declarations =
         createDeclarations flags hsGroup typeEnv exportedNamesSet transformation
+      unitState = ue_units (hsc_unit_env hscEnv)
       environment =
         Environment
           { envDynFlags = flags
@@ -211,6 +223,7 @@ createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule,
           , envPackageId = currentPackageId
           , envComponentId = compId
           , envExportedNames = exportedNamesSet
+          , envUnitState = unitState
           }
       externalIds =
         L.foldl'
@@ -222,11 +235,15 @@ createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule,
           []
           allNames
       currentModuleName =
-        (\(Module _ name) ->
-           HCE.HaskellModuleName . T.pack . moduleNameString $ name) .
-        ms_mod $
-        modSum
-      SourceInfo {..} = foldAST environment typecheckedModule
+        HCE.HaskellModuleName . T.pack
+        . moduleNameString . moduleName . ms_mod
+        $ modSum
+      -- currentModuleName =
+      --   (\(Module _ name) ->
+      --      HCE.HaskellModuleName . T.pack . moduleNameString $ name) .
+      --   ms_mod $
+      --   modSum
+      SourceInfo {..} = foldAST unitState environment typecheckedModule
    in (tidyInternalIds HCE.ModuleInfo
           { id = modulePath
           , transformation = transformation
@@ -307,7 +324,8 @@ prepareSourceCode sourceCodePreprocessing originalSourceCode modSum modulePath =
             sourceCodeAfterPreprocessing
 
 createDefinitionSiteMap ::
-     DynFlags
+  UnitState
+  -> DynFlags
   -> HCE.PackageId
   -> HCE.ComponentId
   -> HM.HashMap HCE.HaskellModulePath HCE.DefinitionSiteMap
@@ -316,45 +334,49 @@ createDefinitionSiteMap ::
   -> HCE.SourceCodeTransformation
   -> ModuleInfo
   -> [Name]
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
   -> HsGroup GhcRn
-#else
-  -> HsGroup Name
-#endif
   -> (HCE.DefinitionSiteMap, [Name])
-createDefinitionSiteMap flags currentPackageId compId defSiteMap fileMap globalRdrEnv transformation modInfo dataFamTyCons hsGroup =
+createDefinitionSiteMap unitState flags currentPackageId compId defSiteMap fileMap globalRdrEnv transformation modInfo dataFamTyCons hsGroup =
   let
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-      allDecls :: [GenLocated SrcSpan (HsDecl GhcRn)]
-#endif
-      allDecls = L.sortOn getLoc . ungroup $ hsGroup
+      --------------------------------------------------------------------------------
+      -- Collect declarations
+      --------------------------------------------------------------------------------
+      allDecls :: [LHsDecl GhcRn]
+      allDecls =
+        L.sortOn
+          (\d -> case locA (getLocA d) of
+                  RealSrcSpan r _ -> (srcSpanStartLine r, srcSpanStartCol r)
+                  _               -> (maxBound :: Int, maxBound :: Int))
+          (ungroup hsGroup)
+
       (instanceDeclsWithDocs, valueAndTypeDeclsWithDocs) =
         L.partition
           (\(L _ decl, _) ->
              case decl of
                InstD {} -> True
-               _ -> False) $
-        collectDocs allDecls
+               _        -> False)
+          (collectDocs allDecls)
+
       --------------------------------------------------------------------------------
       -- Instances
       --------------------------------------------------------------------------------
-      -- No type instances or data instances here for now
-      instanceDocMap :: M.Map SrcSpan [HsDocString]
+      instanceDocMap :: M.Map RealSrcSpan [LHsDoc GhcRn]
       instanceDocMap =
-        M.fromList .
-        mapMaybe
-          (\(L _n decl, docs) ->
-             case decl of
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,1,0)
-               InstD _ (ClsInstD _ inst) -> Just (clsInstDeclSrcSpan inst, docs)
-#else
-               InstD (ClsInstD inst) -> Just (clsInstDeclSrcSpan inst, docs)
-#endif
-               _ -> Nothing) $
-        instanceDeclsWithDocs
+        M.fromList $
+          mapMaybe
+            (\(L nSpan decl, docs) ->
+              case decl of
+                InstD _ (ClsInstD _ _inst) ->
+                  case locA nSpan of
+                    RealSrcSpan r _ -> Just (r, docs)
+                    _               -> Nothing
+                _ -> Nothing)
+            instanceDeclsWithDocs
+
       nameLocation :: Maybe SrcSpan -> Name -> HCE.LocationInfo
-      nameLocation =
+      nameLocation mbSrcSpan name =
         nameLocationInfo
+          unitState
           flags
           currentPackageId
           compId
@@ -362,74 +384,93 @@ createDefinitionSiteMap flags currentPackageId compId defSiteMap fileMap globalR
           fileMap
           defSiteMap
           Nothing
+          Nothing
+          name
+
       docHToHtml :: DocH (ModuleName, OccName) Name -> HCE.HTML
       docHToHtml =
         docWithNamesToHtml
+          unitState
           flags
           currentPackageId
           compId
           transformation
           fileMap
           defSiteMap
+
       instancesWithDocumentation =
-        HM.fromList .
-        map
-          (\clsInst ->
-             ( instanceToText flags clsInst
-             , let location =
-                     nameLocation Nothing (Var.varName . is_dfun $ clsInst)
-                in case M.lookup (getSrcSpan clsInst) instanceDocMap of
-                     Just hsDocString ->
-                       HCE.DefinitionSite
-                         location
-                         (Just . docHToHtml . hsDocsToDocH flags globalRdrEnv $
-                          hsDocString)
-                     Nothing -> HCE.DefinitionSite location Nothing)) $
-        modInfoInstances modInfo -- all instances (including derived)
+        HM.fromList $
+          map
+            (\clsInst ->
+               ( instanceToText flags clsInst
+               , let location = nameLocation Nothing (varName . is_dfun $ clsInst)
+                  in case getSrcSpan clsInst of
+                        RealSrcSpan r _ ->
+                          case M.lookup r instanceDocMap of
+                            Just hsDocs ->
+                              let hsDocStrings = [ s | L _ (WithHsDocIdentifiers s _) <- hsDocs ]
+                                  doc         = hsDocsToDocH unitState flags globalRdrEnv hsDocStrings
+                              in HCE.DefinitionSite location (Just (docHToHtml doc))
+                            Nothing -> HCE.DefinitionSite location Nothing
+                        _ -> HCE.DefinitionSite location Nothing
+                        ))
+            (modInfoInstances modInfo)
+
       --------------------------------------------------------------------------------
       -- Values and types
       --------------------------------------------------------------------------------
       mainDeclNamesWithDocumentation =
         concatMap
-          (\(L span decl, docs) -> map (, docs, span) $ getMainDeclBinder decl)
+          (\(L spanA decl, docs) -> map (, docs, locA spanA) $ getMainDeclBinder decl)
           valueAndTypeDeclsWithDocs
+
       dataFamTyConsWithoutDocs =
         map (\name -> (name, [], nameSrcSpan name)) dataFamTyCons
+
+      allDeclsSrc :: [GenLocated SrcSpan (HsDecl GhcRn)]
+      allDeclsSrc = map (\(L la d) -> L (locA la) d) allDecls
+
       allNamesWithDocumentation =
-        mainDeclNamesWithDocumentation ++
-        subordinateNamesWithDocs allDecls ++ dataFamTyConsWithoutDocs
+        mainDeclNamesWithDocumentation
+          ++ subordinateNamesWithDocs allDeclsSrc
+          ++ dataFamTyConsWithoutDocs
+
       (valuesWithDocumentation, typesWithDocumentation) =
         L.partition
-          (\(name, _doc, _srcSpan) ->
+          (\(name, _, _) ->
              case occNameNameSpace . nameOccName $ name of
-               HCE.VarName -> True
+               HCE.VarName  -> True
                HCE.DataName -> True
-               _ -> False)
+               _            -> False)
           allNamesWithDocumentation
+
       toHashMap ::
-           [(Name, [HsDocString], SrcSpan)]
+           [(Name, [LHsDoc GhcRn], SrcSpan)]
         -> HM.HashMap HCE.OccName HCE.DefinitionSite
       toHashMap =
         HM.fromListWith
           (\(HCE.DefinitionSite loc newDoc) (HCE.DefinitionSite _ oldDoc) ->
-             (HCE.DefinitionSite loc $ mappend newDoc oldDoc)) .
+             HCE.DefinitionSite loc (mappend newDoc oldDoc)) .
         map
           (\(name, docs, srcSpan) ->
              let location = nameLocation (Just srcSpan) name
                  htmlDoc =
-                   if not . null $ docs
-                     then Just . docHToHtml . hsDocsToDocH flags globalRdrEnv $
-                          docs
+                   if not (null docs)
+                     then let hsDocStrings = [ s | L _ (WithHsDocIdentifiers s _) <- docs ]
+                              doc         = hsDocsToDocH unitState flags globalRdrEnv hsDocStrings
+                          in  Just (docHToHtml doc)
                      else Nothing
-              in (HCE.OccName $ toText flags name, HCE.DefinitionSite location htmlDoc))
-      --------------------------------------------------------------------------------
-   in ( HCE.DefinitionSiteMap
-          { HCE.values = toHashMap valuesWithDocumentation
-          , HCE.types =
-              toHashMap $ typesWithDocumentation ++ dataFamTyConsWithoutDocs
+              in (HCE.OccName $ toText name, HCE.DefinitionSite location htmlDoc))
+
+
+  in ( HCE.DefinitionSiteMap
+          { HCE.values    = toHashMap valuesWithDocumentation
+          , HCE.types     = toHashMap (typesWithDocumentation ++ dataFamTyConsWithoutDocs)
           , HCE.instances = instancesWithDocumentation
           }
-      , map (\(n, _, _) -> n) allNamesWithDocumentation)
+     , map (\(n, _, _) -> n) allNamesWithDocumentation
+     )
+
 
 occNameToHtml ::
      DynFlags
@@ -442,10 +483,11 @@ occNameToHtml flags packageId compId (modName, occName) =
         H.textValue . toStrict . encodeToLazyText . Aeson.toJSON $
         occNameLocationInfo flags packageId compId (modName, occName)
    in (H.span H.! H.dataAttribute "location" location) H.! A.class_ "link" $
-      H.toHtml (toText flags occName)
+      H.toHtml (toText occName)
 
 nameToHtml ::
-     DynFlags
+  UnitState
+  -> DynFlags
   -> HCE.PackageId
   -> HCE.ComponentId
   -> HCE.SourceCodeTransformation
@@ -453,10 +495,11 @@ nameToHtml ::
   -> HM.HashMap HCE.HaskellModulePath HCE.DefinitionSiteMap
   -> Name
   -> H.Html
-nameToHtml flags packageId compId transformation files defSiteMap name =
+nameToHtml unitState flags packageId compId transformation files defSiteMap name =
   let location =
         H.textValue . toStrict . encodeToLazyText . Aeson.toJSON $
         nameLocationInfo
+          unitState
           flags
           packageId
           compId
@@ -470,7 +513,8 @@ nameToHtml flags packageId compId transformation files defSiteMap name =
       H.toHtml (nameToText name)
 
 docWithNamesToHtml ::
-     DynFlags
+  UnitState
+  -> DynFlags
   -> HCE.PackageId
   -> HCE.ComponentId
   -> HCE.SourceCodeTransformation
@@ -478,18 +522,14 @@ docWithNamesToHtml ::
   -> HM.HashMap HCE.HaskellModulePath HCE.DefinitionSiteMap
   -> DocH (ModuleName, OccName) Name
   -> HCE.HTML
-docWithNamesToHtml flags packageId compId transformation fileMap defSiteMap =
+docWithNamesToHtml unitState flags packageId compId transformation fileMap defSiteMap =
   HCE.docToHtml
     (occNameToHtml flags packageId compId)
-    (nameToHtml flags packageId compId transformation fileMap defSiteMap)
+    (nameToHtml unitState flags packageId compId transformation fileMap defSiteMap)
 
 createDeclarations ::
      DynFlags
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
   -> HsGroup GhcRn
-#else
-  -> HsGroup Name
-#endif
   -> TypeEnv
   -> S.Set Name
   -> HCE.SourceCodeTransformation
@@ -505,78 +545,73 @@ createDeclarations flags hsGroup typeEnv exportedSet transformation =
         case lookupIdInTypeEnv typeEnv n of
           Just i -> Just . mkType flags . varType $ i
           Nothing -> Nothing
-      -- | Top-level functions
-      --------------------------------------------------------------------------------
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-      valToDeclarations :: GenLocated SrcSpan (HsBindLR GhcRn GhcRn) -> [HCE.Declaration]
-#endif
-      valToDeclarations (L loc bind) =
-        map
-          (\name ->
-             HCE.Declaration
-               HCE.ValD
-               (toText flags name)
-               (nameType name)
-               (S.member name exportedSet)
-               (lineNumber loc)) $
-        collectHsBindBinders bind
+      valToDeclarations :: LHsBindLR GhcRn GhcRn -> [HCE.Declaration]
+      valToDeclarations (L locAnn bind) =
+        let
+          names :: [Name]
+          names = collectHsBindBinders CollNoDictBinders bind
+          loc   :: SrcSpan
+          loc   = locA locAnn
+        in
+          map
+            (\name ->
+               HCE.Declaration
+                 HCE.ValD
+                 (toText name)
+                 (nameType name)
+                 (S.member name exportedSet)
+                 (lineNumber loc))
+            names
       vals = concatMap valToDeclarations $ hsGroupVals hsGroup
       -- | Data, newtype, type, type family, data family or class declaration
       --------------------------------------------------------------------------------
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-      tyClToDeclaration :: GenLocated SrcSpan (TyClDecl GhcRn) -> HCE.Declaration
-#endif
-      tyClToDeclaration (L loc tyClDecl) =
+      tyClToDeclaration :: LTyClDecl GhcRn -> HCE.Declaration
+      tyClToDeclaration (L locA' tyClDecl) =
         HCE.Declaration
           HCE.TyClD
-          (T.append (tyClDeclPrefix tyClDecl) (toText flags $ tcdName tyClDecl))
+          (T.append (tyClDeclPrefix tyClDecl) (toText $ tcdName tyClDecl))
           (nameType $ tcdName tyClDecl)
           (S.member (unLoc $ tyClDeclLName tyClDecl) exportedSet)
-          (lineNumber loc)
+          (lineNumber (locA locA'))
       tyclds =
-        map tyClToDeclaration .
-        filter (isGoodSrcSpan . getLoc) . concatMap group_tyclds . hs_tyclds $
-        hsGroup
+        map tyClToDeclaration
+        . filter (isGoodSrcSpan . locA . getLocA)
+        . concatMap group_tyclds . hs_tyclds
+        $ hsGroup
       -- | Instances
       --------------------------------------------------------------------------------
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-      instToDeclaration :: GenLocated SrcSpan (InstDecl GhcRn) -> HCE.Declaration
-#endif
-      instToDeclaration (L loc inst) =
+      instToDeclaration :: LInstDecl GhcRn -> HCE.Declaration
+      instToDeclaration (L locA' inst) =
         HCE.Declaration
           HCE.InstD
           (instanceDeclToText flags inst)
           Nothing
           True
-          (lineNumber loc)
+          (lineNumber (locA locA'))
       insts =
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,2,0)
-        map instToDeclaration . filter (isGoodSrcSpan . getLoc) . hsGroupInstDecls $
-#else
-        map instToDeclaration . filter (isGoodSrcSpan . getLoc) . hs_instds $
-#endif
-        hsGroup
+        map instToDeclaration
+        . filter (isGoodSrcSpan . locA . getLoc)
+        . hsGroupInstDecls
+        $ hsGroup
       -- | Foreign functions
       --------------------------------------------------------------------------------
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
       foreignFunToDeclaration ::
-           GenLocated SrcSpan (ForeignDecl GhcRn) -> HCE.Declaration
-#endif
-      foreignFunToDeclaration (L loc fd) =
+           LForeignDecl GhcRn -> HCE.Declaration
+      foreignFunToDeclaration (L locA' fd) =
         let name = unLoc $ fd_name fd
-         in HCE.Declaration
-              HCE.ForD
-              (toText flags name)
-              (nameType name)
-              True
-              (lineNumber loc)
+        in HCE.Declaration
+            HCE.ForD
+            (toText name)
+            (nameType name)
+            True
+            (lineNumber (locA locA'))
       fords = map foreignFunToDeclaration $ hs_fords hsGroup
       --------------------------------------------------------------------------------
    in L.sortOn HCE.lineNumber $ vals ++ tyclds ++ insts ++ fords
 
-foldAST :: Environment -> TypecheckedModule -> SourceInfo
-foldAST environment typecheckedModule =
-  let (Just renamed@(_, importDecls, mbExported, _)) =
+foldAST :: UnitState -> Environment -> TypecheckedModule -> SourceInfo
+foldAST unitState environment typecheckedModule =
+  let (Just renamed@(_hsGroupRn, importDecls, mbExported, _mbTopDoc, _mbModuleName)) =
         renamedSource typecheckedModule
       emptyASTState =
         ASTState IVM.empty IM.empty M.empty emptyTidyEnv Nothing environment []
@@ -584,15 +619,6 @@ foldAST environment typecheckedModule =
         execState
           (foldTypecheckedSource $ tm_typechecked_source typecheckedModule)
           emptyASTState
-      -- A few things that are not in the output of the typechecker:
-      --     - the export list
-      --     - the imports
-      --     - type signatures
-      --     - type/data/newtype declarations
-      --     - class declarations
-
-      -- Both typechecked source and renamed source are used to populate
-      -- 'IdentifierInfoMap' and 'IdentifierOccurrenceMap'
       (idInfoMap, idOccMap) =
         L.foldl'
           (addIdentifierToMaps environment astStateIdSrcSpanMap)
@@ -603,43 +629,37 @@ foldAST environment typecheckedModule =
       compId = envComponentId environment
       importedModules =
         map
-          ((\(L span modName) ->
+          ((\(L ann modName) ->
               ( modName
-              , span
+              , locA ann
               , moduleLocationInfo
+                  unitState
                   flags
                   (envModuleNameMap environment)
                   packageId
                   compId
                   modName)) .
-           ideclName . unLoc) .
-        filter (not . ideclImplicit . unLoc) $
+          ideclName . unLoc) .
+        filter (not . (ideclImplicit . ideclExt . unLoc)) $
         importDecls
       exportedModules =
         case mbExported of
           Just lieNames ->
             mapMaybe
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-              (\(L span ie,_) ->
-#else
-              (\(L span ie) ->
-#endif
-                 case ie of
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,1,0)
-                   IEModuleContents _ (L _ modName) ->
-#else
-                   IEModuleContents (L _ modName) ->
-#endif
-                     Just
-                       ( modName
-                       , span
-                       , moduleLocationInfo
-                           flags
-                           (envModuleNameMap environment)
-                           packageId
-                           compId
-                           modName)
-                   _ -> Nothing)
+              (\(L ann ie, _) ->
+                case ie of
+                  IEModuleContents _ (L _ modName) ->
+                    Just
+                      ( modName
+                      , locA ann
+                      , moduleLocationInfo
+                          unitState
+                          flags
+                          (envModuleNameMap environment)
+                          packageId
+                          compId
+                          modName)
+                  _ -> Nothing)
               lieNames
           Nothing -> []
       addImportedAndExportedModulesToIdOccMap ::
@@ -660,7 +680,7 @@ foldAST environment typecheckedModule =
 -- from typechecked source and renamed source
 addIdentifierToMaps ::
      Environment
-  -> M.Map SrcSpan (Id, Maybe (Type, [Type]))
+  -> M.Map RealSrcSpan (Id, Maybe (Type, [Type]))
   -> (HCE.IdentifierInfoMap, HCE.IdentifierOccurrenceMap)
   -> NameOccurrence
   -> (HCE.IdentifierInfoMap, HCE.IdentifierOccurrenceMap)
@@ -687,7 +707,7 @@ addIdentifierToMaps environment idSrcSpanMap idMaps@(idInfoMap, idOccMap) nameOc
           Just (identifier, mbTypes) ->
             let name =
                   fromMaybe
-                    (Var.varName identifier)
+                    (varName identifier)
                     (unLoc $ locatedName nameOcc)
                 identifierType = varType identifier
                 identifierTypeExpanded = expandTypeSynonyms identifierType
@@ -787,25 +807,30 @@ addNameToMaps environment (idInfoMap, idOccMap) mbKind mbName descr lineNumber c
 
 lookupIdByNameOccurrence ::
      Environment
-  -> M.Map SrcSpan (Id, Maybe (Type, [Type]))
+  -> M.Map RealSrcSpan (Id, Maybe (Type, [Type]))
   -> NameOccurrence
   -> Maybe (Id, Maybe (Type, [Type]))
 lookupIdByNameOccurrence environment idSrcSpanMap (NameOccurrence (L span mbName) _ _) =
-  case M.lookup span idSrcSpanMap of
-    Just (identifier, mbTypes) -> Just (identifier, mbTypes)
-    Nothing ->
+  case lookupBySrcSpan span of
+    Just hit -> Just hit
+    Nothing  ->
       case mbName of
         Just name ->
-          case M.lookup (nameSrcSpan name) idSrcSpanMap of
-            -- LHS of a Match
-            Just (identifier, mbTypes) -> Just (identifier, mbTypes)
-            Nothing ->
-              -- Things that are not in the typechecked source
+          case lookupBySrcSpan (nameSrcSpan name) of
+            Just hit -> Just hit             -- LHS of a Match 等
+            Nothing  ->
+              -- 不在 typechecked 源里的名字，退回 TypeEnv
               case lookupIdInTypeEnv (envTypeEnv environment) name of
-                Just t -> Just (t, Nothing)
+                Just t  -> Just (t, Nothing)
                 Nothing -> Nothing
         Nothing -> Nothing
-lookupIdByNameOccurrence _ _ TyLitOccurrence {..} = Nothing
+  where
+    lookupBySrcSpan :: SrcSpan -> Maybe (Id, Maybe (Type, [Type]))
+    lookupBySrcSpan s =
+      case s of
+        RealSrcSpan real _ -> M.lookup real idSrcSpanMap
+        _                  -> Nothing
+lookupIdByNameOccurrence _ _ TyLitOccurrence{} = Nothing
 
 updateIdMap ::
      Environment

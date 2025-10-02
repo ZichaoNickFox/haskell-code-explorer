@@ -12,3 +12,9 @@ TAGS
 .\#*
 # stack 2.1 stack.yaml lock files
 stack*.yaml.lock
+
+*.hi
+*.o
+.vscode
+
+.DS_Store

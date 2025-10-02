@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module Main where
@@ -52,7 +53,7 @@ packageInfoSpec currentDir = do
     Right packageInfo -> do
       describe "createPackageInfo" $ do
         it "returns valid package id" $
-          HCE.id (packageInfo :: PackageInfo ModuleInfo) `shouldBe`
+          packageInfo.id `shouldBe`
           PackageId "test-package" (makeVersion [0, 1, 0, 0])
         it "returns valid list of module paths" $ do
           let paths =
@@ -111,7 +112,7 @@ moduleInfoSpec :: ModuleInfo -> Spec
 moduleInfoSpec modInfo =
   describe "createModuleInfo" $ do
     it "returns valid module name" $
-      HCE.name (modInfo :: HCE.ModuleInfo) `shouldBe`
+      modInfo.name `shouldBe`
       HCE.HaskellModuleName "Lib"
     it "returns valid list of declarations " $
       HCE.declarations (modInfo :: HCE.ModuleInfo) `shouldBe` testDeclarations
@@ -133,10 +134,9 @@ moduleInfoSpec modInfo =
               , "mkTest i = Test i"
               , ""
               ]
-      HCE.source (modInfo :: HCE.ModuleInfo) `shouldBe` sourceCodeLines
+      modInfo.source `shouldBe` sourceCodeLines
     it "returns valid map of expressions" $
-      HCE.exprInfoMap (modInfo :: HCE.ModuleInfo) `shouldBe` testExprInfoMap
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,2,0)
+      modInfo.exprInfoMap `shouldBe` testExprInfoMap
     it "returns valid map of identifiers " $
       let removeLocationInfo :: HCE.LocationInfo -> HCE.LocationInfo
           removeLocationInfo _ = HCE.UnknownLocation ""
@@ -150,26 +150,11 @@ moduleInfoSpec modInfo =
           cleanup = U.transformBi removeLocationInfo . U.transformBi removePackageVersionFromExternalId
        in
         cleanup (HCE.idInfoMap (modInfo :: HCE.ModuleInfo)) `shouldBe` cleanup testIdInfoMap
-#endif
     it "returns valid map of identifier occurrences" $
       HCE.idOccMap (modInfo :: HCE.ModuleInfo) `shouldBe` testIdOccMap
 
 stackYamlArg :: [String]
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0)
 stackYamlArg = []
-#elif MIN_VERSION_GLASGOW_HASKELL(8,6,4,0)
-stackYamlArg = ["--stack-yaml=stack-8.6.4.yaml"]
-#elif MIN_VERSION_GLASGOW_HASKELL(8,6,3,0)
-stackYamlArg = ["--stack-yaml=stack-8.6.3.yaml"]
-#elif MIN_VERSION_GLASGOW_HASKELL(8,4,4,0)
-stackYamlArg = ["--stack-yaml=stack-8.4.4.yaml"]
-#elif MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
-stackYamlArg = ["--stack-yaml=stack-8.4.3.yaml" ]
-#elif MIN_VERSION_GLASGOW_HASKELL(8,2,2,0)
-stackYamlArg = ["--stack-yaml=stack-8.2.2.yaml" ]
-#else
-stackYamlArg = ["--stack-yaml=stack-8.0.2.yaml" ]
-#endif
 
 buildAndIndexTestPackage ::
      FilePath -> IO (Either String (PackageInfo ModuleInfo))

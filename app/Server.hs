@@ -16,6 +16,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main where
@@ -51,9 +52,7 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Vector as V
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
 import qualified GHC.Compact as C
-#endif
 import Data.Pagination
   ( Paginated
   , hasNextPage
@@ -125,11 +124,7 @@ import Servant
   , Header
   , Headers
   , QueryParam
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0)
   , ServerError
-#else
-  , ServantErr
-#endif
   , ServerT
   , ToHttpApiData(..)
   , addHeader
@@ -141,11 +136,7 @@ import Servant
   )
 import Servant.API.ContentTypes (AllCTRender(..), JSON)
 import Servant.Server (Handler(..), hoistServer)
-#if MIN_VERSION_servant(0,14,1)
 import Servant.Links (safeLink)
-#else
-import Servant.Utils.Links (safeLink)
-#endif
 import System.Directory (doesFileExist)
 import System.Exit (exitFailure, exitSuccess)
 import System.FilePath.Find
@@ -522,9 +513,7 @@ createStore storePath config = do
            eitherPackageInfo <- loadPackageInfo config path
            case eitherPackageInfo of
              Right (packageInfo, packagePath) -> do
-               let packageId =
-                     HCE.id
-                       (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo)
+               let packageId = (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo).id
                    addPackageInfo :: StateT Store.State IO ()
                    addPackageInfo = do
                      Store.add
@@ -544,17 +533,12 @@ createStore storePath config = do
                        (\(modulePath, moduleInfo) -> do
                           addExpressionInfo
                             packageId
-                            modulePath
-                            (HCE.exprInfoMap
-                               (moduleInfo :: HCE.CompactModuleInfo))
-                          Store.add
-                            (HCE.definitionSiteMap
-                               (moduleInfo :: HCE.CompactModuleInfo))
+                            modulePath moduleInfo.exprInfoMap
+                          Store.add moduleInfo.definitionSiteMap
                             ( packageId
                             , modulePath
                             , Proxy :: Proxy HCE.DefinitionSiteMap)
-                          Store.add
-                            (HCE.source (moduleInfo :: HCE.CompactModuleInfo))
+                          Store.add moduleInfo.source
                             ( packageId
                             , modulePath
                             , Proxy :: Proxy (V.Vector T.Text))) .
@@ -605,7 +589,7 @@ createStore storePath config = do
         ([], HM.empty, HM.empty, [], HM.empty, [], M.empty)
         packageDirectories
     let versions =
-          L.sortOn (T.toLower . (name :: PackageVersions -> T.Text)) .
+          L.sortOn (T.toLower . (\pv -> pv.name)) .
           map (\(name, vers) -> PackageVersions name (L.sortOn Down vers)) .
           HM.toList . HM.fromListWith (++) $
           packageVersions'
@@ -776,7 +760,7 @@ loadPackages config _ = do
       packageLoadErrors = lefts result
       packageInfos = map fst loadedPackages
       packageIds =
-        map (HCE.id :: HCE.PackageInfo modInfo -> HCE.PackageId) packageInfos
+        map (\modInfo -> modInfo.id) packageInfos
   unless (null packageInfos) $ do
     putStrLn "Loaded packages : "
     mapM_ (print . HCE.packageIdToText) packageIds
@@ -786,7 +770,7 @@ loadPackages config _ = do
   if not . null $ loadedPackages
     then do
       let packageVersions =
-            L.sortOn (T.toLower . (name :: PackageVersions -> T.Text)) .
+            L.sortOn (T.toLower . (\pv -> pv.name)) .
             map
               (\(name, versions) ->
                  PackageVersions name (L.sortOn Down versions)) .
@@ -807,9 +791,7 @@ loadPackages config _ = do
               (\hMap (packageInfo, path) ->
                  let key =
                        PackageId $
-                       HCE.packageIdToText
-                         (HCE.id
-                            (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo))
+                       HCE.packageIdToText (packageInfo.id)
                   in HM.insert key path hMap)
               HM.empty
               loadedPackages
@@ -825,9 +807,7 @@ loadPackages config _ = do
                                  (HCE.packageIdToText packageId))) .
                        HCE.externalIdOccMap $
                        packageInfo
-                     packageId =
-                       HCE.id
-                         (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo)
+                     packageId = packageInfo.id
                   in HM.unionWith S.union references hMap)
               HM.empty
               loadedPackages
@@ -864,13 +844,9 @@ loadPackages config _ = do
     else return Nothing
   where
     packageName :: HCE.PackageInfo HCE.CompactModuleInfo -> PackageName
-    packageName =
-      PackageName .
-      (HCE.name :: HCE.PackageId -> T.Text) .
-      (HCE.id :: HCE.PackageInfo modInfo -> HCE.PackageId)
+    packageName = PackageName . (\pid -> pid.name) .  (\modInfo -> modInfo.id)
     packageVersion :: HCE.PackageInfo HCE.CompactModuleInfo -> Version
-    packageVersion =
-      HCE.version . (HCE.id :: HCE.PackageInfo modInfo -> HCE.PackageId)
+    packageVersion = (\modInfo -> modInfo.id.version)
 
 trieValues :: HCE.Trie k v -> [v]
 trieValues (HCE.Trie values children) =
@@ -882,11 +858,7 @@ isExportedId (HCE.ExternalIdentifierInfo HCE.IdentifierInfo {isExported}) =
 
 ghcCompact :: forall a. a -> IO a
 ghcCompact =
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
   (fmap C.getCompact . C.compact)
-#else
-  return
-#endif
 
 loadPackageInfo ::
      ServerConfig
@@ -1103,8 +1075,7 @@ getExpressions packageId modulePath startLine startColumn endLine endColumn = do
             in case packageInfo' of
                  PackageInfo packageInfo ->
                    withModuleInfo packageInfo modulePath $ \modInfo -> do
-                     let exprInfoMap =
-                           HCE.exprInfoMap (modInfo :: HCE.CompactModuleInfo)
+                     let exprInfoMap = modInfo.exprInfoMap 
                      findInterval exprInfoMap
                  PackageInfoStore pId store -> do
                    let topLevelExprKey =
@@ -1155,15 +1126,9 @@ getDefinitionSite packageId componentId modName entity name' =
                 let mbDefinitionSite =
                       let name = fixDots name'
                       in case entity of
-                        HCE.Typ ->
-                          HM.lookup (HCE.OccName name) $
-                          HCE.types (defSiteMap :: HCE.DefinitionSiteMap)
-                        HCE.Val ->
-                          HM.lookup (HCE.OccName name) $
-                          HCE.values (defSiteMap :: HCE.DefinitionSiteMap)
-                        HCE.Inst ->
-                          HM.lookup name $
-                          HCE.instances (defSiteMap :: HCE.DefinitionSiteMap)
+                        HCE.Typ -> HM.lookup (HCE.OccName name) defSiteMap.types
+                        HCE.Val -> HM.lookup (HCE.OccName name) defSiteMap.values
+                        HCE.Inst -> HM.lookup name defSiteMap.instances
                         _ -> Nothing
                 case mbDefinitionSite of
                   Just definitionSite -> return definitionSite
@@ -1179,9 +1144,7 @@ getDefinitionSite packageId componentId modName entity name' =
                       ]
        in case packageInfo' of
             PackageInfo packageInfo ->
-              let pId =
-                    HCE.id
-                      (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo)
+              let pId = packageInfo.id
                in case HM.lookup
                          modPath
                          (HCE.moduleMap
@@ -1316,20 +1279,18 @@ getReferences packageId externalId mbPage mbPerPage =
                       Nothing
                       Nothing
                   refModulePath :: ReferenceWithSource -> HCE.HaskellModulePath
-                  refModulePath =
-                    (HCE.modulePath :: HCE.IdentifierSrcSpan -> HCE.HaskellModulePath) .
-                    idSrcSpan
+                  refModulePath = (\idSrcSpan -> idSrcSpan.modulePath) . idSrcSpan
               return $
                 addPaginationHeaders url paginatedReferences totalCount page perPage $
                 concatMap
                   (\refs ->
                      case refs of
                        ref:_ ->
-                         let path =
-                               HCE.getHaskellModulePath .
-                               (HCE.modulePath :: HCE.IdentifierSrcSpan -> HCE.HaskellModulePath) .
-                               idSrcSpan $
-                               ref
+                         let path = ref.idSrcSpan.modulePath.getHaskellModulePath
+                        --  let path = 
+                        --        HCE.getHaskellModulePath . modulePath . idSrcSpan
+                        --        idSrcSpan $
+                        --        ref
                           in [SourceFile path refs]
                        _ -> []) $
                 groupWith refModulePath $
@@ -1377,17 +1338,14 @@ mkReferenceWithSource packageInfo' spans@(srcSpan:_) =
    in case packageInfo' of
         PackageInfo packageInfo -> do
           let mbSource =
-                (HCE.source :: HCE.CompactModuleInfo -> V.Vector T.Text) <$>
-                HM.lookup
-                  (HCE.modulePath (srcSpan :: HCE.IdentifierSrcSpan))
-                  (HCE.moduleMap
-                     (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo))
+                (\compact -> compact.source) <$>
+                HM.lookup srcSpan.modulePath packageInfo.moduleMap
           mkRef mbSource
         PackageInfoStore packageId store -> do
           let eitherSourceCode =
                 Store.lookup
                   ( packageId
-                  , HCE.modulePath (srcSpan :: HCE.IdentifierSrcSpan)
+                  , srcSpan.modulePath
                   , Proxy :: Proxy (V.Vector T.Text))
                   store
           case eitherSourceCode of
@@ -1678,7 +1636,7 @@ withModuleInfo packageInfo path action =
         , " is not found in package "
         , toLazyBS $
           HCE.packageIdToText $
-          HCE.id (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo)
+          packageInfo.id
         ]
 
 withModulePath ::
@@ -1700,7 +1658,7 @@ withModulePath packageInfo' componentId moduleName action =
               case HM.lookup (HCE.ComponentId "lib") modulePathMap of
                 Just path -> action path
                 Nothing -> notFoundInComponent
-        Nothing -> notFoundInPackage (HCE.id (packageInfo :: HCE.PackageInfo HCE.CompactModuleInfo))
+        Nothing -> notFoundInPackage packageInfo.id
     PackageInfoStore packageId store -> do
       let eitherModNameMap =
               Store.lookup
@@ -1814,11 +1772,19 @@ staticMiddleware _ _ mbJsDistPath _app req callback =
           Just bs -> callback $ sendEmbeddedFile path bs
           Nothing -> callback $ sendEmbeddedFile "index.html" indexHtml
 
+#ifdef HASKELL_CODE_INDEXER
+staticAssets :: HM.HashMap FilePath BS.ByteString
+staticAssets = HM.empty
+
+indexHtml :: BS.ByteString
+indexHtml = BS.empty
+#else
 staticAssets :: HM.HashMap FilePath BS.ByteString
 staticAssets = HM.fromList $(embedDir "javascript/release")
 
 indexHtml :: BS.ByteString
 indexHtml = $(embedFile "javascript/release/index.html")
+#endif
 
 sendFile :: FilePath -> Response
 sendFile path =
@@ -1839,11 +1805,7 @@ fileNotFound :: Response
 fileNotFound =
   responseLBS status404 [("Content-Type", "text/plain")] "Not found"
 
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0)
 throwServantError :: (MonadIO m) => ServerError -> m a
-#else
-throwServantError :: (MonadIO m) => ServantErr -> m a
-#endif
 throwServantError = liftIO . throwIO
 
 server :: Environment -> ServerT API Handler

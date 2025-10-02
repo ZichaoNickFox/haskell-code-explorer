@@ -41,7 +41,7 @@ import System.Process.Typed
 -- | Keep this in sync with the stack.yamls at the top level of the project.
 supportedGhcVersions :: [Version]
 supportedGhcVersions =
-  map Version ["8.0.2", "8.2.2", "8.4.3", "8.4.4", "8.6.3", "8.6.4","8.6.5"]
+  map Version ["9.10.2"]
 
 newtype Version = Version { unVersion :: String } deriving Eq
 

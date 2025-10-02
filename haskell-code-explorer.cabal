@@ -1,5 +1,6 @@
+cabal-version:       3.8
 name:                haskell-code-explorer
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Web application for exploring and understanding Haskell codebases
 Category:            GHC,Web
 description:         Please see README.md
@@ -8,7 +9,6 @@ license-file:        LICENSE
 author:              Alexey Kiryushin
 maintainer:          alexey.a.kiryushin@gmail.com
 build-type:          Simple
-cabal-version:       >=1.20
 
 library
   default-language: Haskell2010
@@ -20,19 +20,21 @@ library
                  , HaskellCodeExplorer.AST.RenamedSource
                  , HaskellCodeExplorer.AST.TypecheckedSource
   hs-source-dirs: src
-  ghc-options:   -Wall -O2 -funbox-strict-fields
+  ghc-options:   -Wall -O2 -funbox-strict-fields -package ghc
   build-depends: IntervalMap
                , aeson
                , attoparsec
                , base
                , blaze-html
                , deepseq
+               , Cabal
+               , Cabal-syntax
                , bytestring
-               , cabal-helper
                , cereal
                , containers
                , directory
                , directory-tree
+               , exceptions
                , filemanip
                , filepath
                , ghc
@@ -52,16 +54,19 @@ library
 
 executable haskell-code-indexer
   main-is:             Indexer.hs
-  ghc-options:        -Wall -rtsopts -O2 -funbox-strict-fields
+  ghc-options:        -Wall -rtsopts -O2 -funbox-strict-fields -package ghc
   other-modules: Paths_haskell_code_explorer
   hs-source-dirs: app
   build-depends:     IntervalMap
                    , aeson
                    , base
                    , bytestring
+                   , Cabal
+                   , Cabal-syntax
                    , cereal
                    , directory
                    , filepath
+                   , ghc
                    , optparse-applicative
                    , text
                    , time
@@ -75,7 +80,7 @@ executable haskell-code-indexer
 
 executable haskell-code-server
   main-is:             Server.hs
-  ghc-options:        -Wall -O2 -rtsopts -funbox-strict-fields -threaded
+  ghc-options:        -Wall -O2 -rtsopts -funbox-strict-fields -threaded -package ghc
   hs-source-dirs: app,src
   other-modules: HaskellCodeExplorer.Types, Store
   build-depends:     IntervalMap
@@ -86,8 +91,10 @@ executable haskell-code-server
                    , containers
                    , deepseq
                    , directory
+                   , exceptions
                    , filemanip
                    , filepath
+                   , ghc
                    , blaze-html
                    , text
                    , unordered-containers
@@ -116,8 +123,7 @@ executable haskell-code-server
                    , uri-encode
                    , lens-aeson
                    , wreq
-  if impl(ghc >= 8.4.3)
-    build-depends: ghc-compact
+  build-depends: ghc-compact
 
 test-suite test
   default-language: Haskell2010

@@ -12,6 +12,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module HaskellCodeExplorer.Types where
@@ -48,11 +49,10 @@ import Documentation.Haddock.Types
   , Header(..)
   , Hyperlink(..)
   , Picture(..)
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
+  , ModLink(..)
   , Table(..)
   , TableCell(..)
   , TableRow(..)
-#endif
   )
 import GHC.Generics (Generic)
 import Prelude hiding (id)
@@ -85,8 +85,7 @@ packageIdToText (PackageId name version) =
   T.concat [name, "-", T.pack $ showVersion version]
 
 packageName :: PackageInfo a -> T.Text
-packageName =
-  (name :: (PackageId -> T.Text)) . (id :: PackageInfo a -> PackageId)
+packageName pkgInfo = pkgInfo.id.name
 
 data IdentifierSrcSpan = IdentifierSrcSpan
   { modulePath :: HaskellModulePath
@@ -323,9 +322,7 @@ instance Ord ExternalIdentifierInfo where
           GT -> GT
           LT -> LT
           EQ ->
-            compare
-              (internalId (i1 :: IdentifierInfo))
-              (internalId (i2 :: IdentifierInfo))
+            compare i1.internalId i2.internalId 
 
 data ExpressionInfo = ExpressionInfo
   { description :: T.Text
@@ -481,7 +478,7 @@ instance (Data k, Data v, Eq k, Ord k, Data (IVM.Interval k)) =>
       1 -> k (z IVM.fromList)
       _ -> error "gunfold"
   dataTypeOf _ = intervalMapDataType
-  dataCast2 = gcast2
+  dataCast2 f = gcast2 f
 
 fromListConstr :: Constr
 fromListConstr = mkConstr intervalMapDataType "fromList" [] Prefix
@@ -699,7 +696,7 @@ lineToHtml lineNumber tokens =
                      "identifier"
                      (Html.textValue $
                       maybe "" getInternalId $
-                      internalId (idOcc :: IdentifierOccurrence)) $
+                      idOcc.internalId) $
                    Html.toHtml content
                  Nothing -> addPositionAttrs . Html.span . Html.toHtml $ content)
         tokens
@@ -757,16 +754,16 @@ docToHtml modToHtml idToHtml = toStrict . renderHtml . toH
     toH (DocMonospaced doc) =
       Html.span Html.! Attr.class_ "source-code-font" $ toH doc
     toH (DocUnorderedList docs) = Html.ul $ mapM_ (Html.li . toH) docs
-    toH (DocOrderedList docs) = Html.ol $ mapM_ (Html.li . toH) docs
+    toH (DocOrderedList docs) = Html.ol $ mapM_ (Html.li . toH . snd) docs
     toH (DocDefList docs) =
       Html.dl $
       mapM_ (\(doc1, doc2) -> Html.dt (toH doc1) >> Html.dd (toH doc2)) docs
     toH (DocCodeBlock doc) = Html.div Html.! Attr.class_ "source-code" $ toH doc
     toH (DocIdentifierUnchecked modName) = modToHtml modName
-    toH (DocModule str) = Html.span . Html.toHtml . T.pack $ str
+    toH (DocModule modelLink) = Html.span . Html.toHtml . T.pack $ (modLinkName modelLink)
     toH (DocHyperlink (Hyperlink url mbTitle)) =
       Html.a Html.! (Attr.href . Html.textValue . T.pack $ url) $
-      Html.toHtml $ fromMaybe url mbTitle
+      fromMaybe (Html.toHtml url) $ toH <$> mbTitle
     toH (DocPic (Picture uri mbTitle)) =
       Html.img Html.! (Attr.src . Html.textValue . T.pack $ uri) Html.!
       (Attr.title . Html.textValue . T.pack $ fromMaybe "" mbTitle)
@@ -796,7 +793,6 @@ docToHtml modToHtml idToHtml = toStrict . renderHtml . toH
         toHeader 4 = Html.h4
         toHeader 5 = Html.h5
         toHeader _ = Html.h6
-#if MIN_VERSION_GLASGOW_HASKELL(8,4,3,0)
     toH (DocTable (Table hs bs)) =
       let tableRowToH tdOrTh (TableRow cells) =
             Html.tr $ mapM_ (tableCellToH tdOrTh) cells
@@ -807,7 +803,6 @@ docToHtml modToHtml idToHtml = toStrict . renderHtml . toH
        in Html.table $
           Html.thead (mapM_ (tableRowToH Html.th) hs) >>
           Html.tbody (mapM_ (tableRowToH Html.td) bs)
-#endif
 
 instance A.ToJSON HaskellModuleName where
   toJSON (HaskellModuleName name) = A.String name

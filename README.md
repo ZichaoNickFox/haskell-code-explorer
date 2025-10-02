@@ -48,48 +48,18 @@ cd haskell-code-explorer
 
 To build Haskell Code Explorer Stack ([https://docs.haskellstack.org/en/stable/README/](https://docs.haskellstack.org/en/stable/README/)) is needed.
 
-At the moment Haskell Code Explorer supports GHC 8.6.5, 8.6.4, GHC 8.6.3, GHC 8.4.4, GHC 8.4.3, GHC 8.2.2, and 8.0.2.
+At the moment Haskell Code Explorer supports GHC 9.10.2
 
-For GHC 8.6.5:
+For GHC 9.10.2:
 
 ```bash
 stack install
 ```
 
-For GHC 8.6.4:
+For GHC 9.10.2:
 
 ```bash
-stack --stack-yaml=stack-8.6.4.yaml install
-```
-
-For GHC 8.6.3:
-
-```bash
-stack --stack-yaml=stack-8.6.3.yaml install
-```
-
-For GHC 8.4.4:
-
-```bash
-stack --stack-yaml=stack-8.4.4.yaml install
-```
-
-For GHC 8.4.3:
-
-```bash
-stack --stack-yaml=stack-8.4.3.yaml install
-```
-
-For GHC 8.2.2:
-
-```bash
-stack --stack-yaml=stack-8.2.2.yaml install
-```
-
-For GHC 8.0.2:
-
-```bash
-stack --stack-yaml=stack-8.0.2.yaml install
+stack --stack-yaml=stack-9.10.2.yaml install
 ```
 
 ## Indexing source code of a Cabal package
@@ -106,12 +76,12 @@ If there is no globally installed GHC on the system, then it is possible to use 
 
 Run `cabal update` using stack exec:
 ```bash
-stack --resolver=lts-13.20 exec --no-ghc-package-path cabal -- update
+stack --resolver=lts-24.11 exec --no-ghc-package-path cabal -- update
 ```
 
 Index a package using stack exec:
 ```bash
-stack --resolver=lts-13.20 exec --no-ghc-package-path haskell-code-indexer -- INDEXER_OPTIONS
+stack --resolver=lts-24.11 exec --no-ghc-package-path haskell-code-indexer -- INDEXER_OPTIONS
 ```
 
 `--no-ghc-package-path` option unsets `GHC_PACKAGE_PATH` environment variable. `cabal` fails with the error `Use of GHC's environment variable GHC_PACKAGE_PATH is incompatible with Cabal.` if the `GHC_PACKAGE_PATH` is set.

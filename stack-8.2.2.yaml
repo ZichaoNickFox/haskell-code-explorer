@@ -1,7 +1,0 @@
-resolver: lts-11.3
-packages:
-- '.'
-- 'vendor/cabal-helper-0.8.1.2'
-extra-deps:
- - cabal-plan-0.4.0.0
- - pretty-show-1.8.2
