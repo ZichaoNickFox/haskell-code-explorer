@@ -70,7 +70,7 @@ A package should be built using either cabal-install or stack before indexing (`
 
 The version of GHC used to build `haskell-code-indexer` must match the version of GHC used to build a package you are indexing (to find out the version of GHC try `ghc --version` or `stack exec ghc -- --version` command).
 
-`haskell-code-indexer` requires globally installed GHC and cabal-install (`cabal`). The reason for this is that `haskell-code-indexer` uses `cabal-helper` library [https://hackage.haskell.org/package/cabal-helper](https://hackage.haskell.org/package/cabal-helper) to get package build information. `cabal-helper` builds (at runtime) an executable linked against a version of Cabal library that was used to configure the package. You may need to run `cabal update` to get the latest list of available packages to be able to build the `cabal-helper` executable. By default, the `cabal-helper` executable (e.g.,`cabal-helper0.8.1.2-Cabal2.4.1.0`) is saved to `$HOME/.cache/cabal-helper`.
+`haskell-code-indexer` requires globally installed GHC and cabal-install (`cabal`). The reason for this is that `haskell-code-indexer` uses `cabal` library to get package build information.
 
 If there is no globally installed GHC on the system, then it is possible to use `stack exec` command ([https://docs.haskellstack.org/en/stable/GUIDE/#exec](https://docs.haskellstack.org/en/stable/GUIDE/#exec)) that adds a path to GHC binaries installed by Stack to `PATH` environment variable.
 

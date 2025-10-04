@@ -42,7 +42,7 @@ import Options.Applicative
   , strOption
   , value
   )
--- import Paths_haskell_code_explorer as HSE (version)
+import Paths_haskell_code_explorer as HSE (version)
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(..), exitWith)
 import System.FilePath ((</>))
@@ -56,9 +56,6 @@ import System.Log.FastLogger
   , pushLogStrLn
   , rmLoggerSet
   )
-
-version :: Version
-version = Version [0, 2, 0, 0] [T.unpack "Support GHC 9.10.2"]
 
 data IndexerConfig = IndexerConfig
   { configPackageDirectoryPath :: FilePath

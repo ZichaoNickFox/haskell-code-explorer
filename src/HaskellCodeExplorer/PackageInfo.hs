@@ -44,6 +44,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Version (Version(..), showVersion, makeVersion)
 import GHC.Driver.Phases (Phase)
+import Data.Bool
 import GHC.Utils.Logger
   ( getLogger
   , LogFlags(..)
@@ -53,7 +54,9 @@ import GHC.Utils.Error
   , MessageClass(..) )
 import GHC.Types.SrcLoc   (SrcSpan)
 import GHC.Utils.Outputable (SDoc, showSDocUnsafe)
-import GHC.Unit.Module.Graph (ModuleGraphNode(..))
+import GHC.Unit.Module.Graph
+  ( ModuleGraphNode(..)
+  , mgModSummaries' )
 import Data.Maybe (mapMaybe)
 import GHC.Unit.Types (UnitId)
 import GHC.Data.Graph.Directed (flattenSCCs)
@@ -231,13 +234,13 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
 
       mkLib cid lib =
         let bi        = libBuildInfo lib
-            srcDirs   = hsDirs bi
+            srcDirs   = collectHsDirs distDir bi
             exposeds  = map Distribution.Pretty.prettyShow (exposedModules lib)
             others    = map Distribution.Pretty.prettyShow (otherModules bi)
             sigs      = map Distribution.Pretty.prettyShow (signatures lib)
             mods      = exposeds ++ others ++ sigs
         in ( HCE.ComponentId (T.pack cid)
-           , ghcOptionsForBI packageDirectoryAbsPath bi
+           , ghcOptionsForBI packageDirectoryAbsPath distDir bi
            , (Nothing, mods)
            , srcDirs
            , HCE.Lib
@@ -245,20 +248,20 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
 
       mkFLib cid fl =
         let bi      = foreignLibBuildInfo fl
-            srcDirs = hsDirs bi
+            srcDirs = collectHsDirs distDir bi
         in ( HCE.ComponentId (T.pack cid)
-           , ghcOptionsForBI packageDirectoryAbsPath bi
+           , ghcOptionsForBI packageDirectoryAbsPath distDir bi
            , (Nothing, [])
            , srcDirs
            , HCE.FLib (T.pack (unUnqualComponentName (foreignLibName fl)))
            )
 
       mkExe cid e =
-        let bi      = buildInfo e
-            srcDirs = hsDirs bi
+        let bi      = (buildInfo e)
+            srcDirs = collectHsDirs distDir bi
             mainFP  = modulePath e
         in ( HCE.ComponentId (T.pack cid)
-           , ghcOptionsForBI packageDirectoryAbsPath bi
+           , ghcOptionsForBI packageDirectoryAbsPath distDir bi
            , (Just mainFP, [])
            , srcDirs
            , HCE.Exe (T.pack (unUnqualComponentName (exeName e)))
@@ -268,9 +271,9 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
         case testInterface t of
           TestSuiteExeV10 _ mainFP ->
             let bi      = testBuildInfo t
-                srcDirs = hsDirs bi
+                srcDirs = collectHsDirs distDir bi
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
                , (Just mainFP, [])
                , srcDirs
                , HCE.Test (T.pack (unUnqualComponentName (testName t)))
@@ -278,9 +281,9 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
           _ ->
             let bi = testBuildInfo t
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
                , (Nothing, [])
-               , hsDirs bi
+               , collectHsDirs distDir bi
                , HCE.Test (T.pack (unUnqualComponentName (testName t)))
                )
 
@@ -288,9 +291,9 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
         case benchmarkInterface b of
           BenchmarkExeV10 _ mainFP ->
             let bi      = benchmarkBuildInfo b
-                srcDirs = hsDirs bi
+                srcDirs = collectHsDirs distDir bi
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
                , (Just mainFP, [])
                , srcDirs
                , HCE.Bench (T.pack (unUnqualComponentName (benchmarkName b)))
@@ -298,9 +301,9 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
           _ ->
             let bi = benchmarkBuildInfo b
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
                , (Nothing, [])
-               , hsDirs bi
+               , collectHsDirs distDir bi
                , HCE.Bench (T.pack (unUnqualComponentName (benchmarkName b)))
                )
 
@@ -360,8 +363,8 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
         , externalIdInfoMap = topLevelIdentifiersTrie
         }
   where
-    ghcOptionsForBI :: FilePath -> BuildInfo -> [String]
-    ghcOptionsForBI pkgDir bi =
+    ghcOptionsForBI :: FilePath -> FilePath -> BuildInfo -> [String]
+    ghcOptionsForBI pkgDir distDir bi =
          hcOptions GHC bi
       ++ langOpts
       ++ extOpts
@@ -379,12 +382,15 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
             , cppOptions bi
             ]
         srcDirOpts =
-          concatMap (\d -> ["-i" <> absJoin d]) (hsDirs bi)
+          concatMap (\d -> ["-i" <> absJoin d]) (collectHsDirs distDir bi)
         absJoin d =
           if isAbsolute d then d else normalise (pkgDir </> d)
 
-    hsDirs :: BuildInfo -> [FilePath]
-    hsDirs bi = map getSymbolicPath (hsSourceDirs bi)
+    collectHsDirs :: FilePath -> BuildInfo -> [FilePath]
+    collectHsDirs distDir bi =
+      let sourceDirs = map getSymbolicPath (hsSourceDirs bi)
+          autogenDir = distDir <> "/build/autogen"
+       in sourceDirs <> [ autogenDir ]
 
 findSingleCabalFile :: FilePath -> IO FilePath
 findSingleCabalFile dir = do
@@ -575,6 +581,7 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
       liftIO $ print $ "----------------------------------------------------------------------------------------"
       liftIO $ print $ (T.append "Component id : " $ HCE.getComponentId componentId)
       liftIO $ print $ (T.append "Modules : " $ T.pack $ show modules)
+      liftIO $ print $ (T.append "srcDirs : " $ T.pack $ show srcDirs)
       liftIO $ print $
         (T.append "GHC command line options : " $
          T.pack $ L.unwords (options ++ modules))
@@ -583,7 +590,7 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
         parseDynamicFlagsCmdLine
           flags
           (L.map noLoc . L.filter ("-Werror" /=) $ options) -- -Werror flag makes warnings fatal
-      -- flags'' <- liftIO $ initUnits flags'
+      env <- getSession                 -- :: Ghc HscEnv
       logFn <- askLoggerIO
       let logAction :: LogFlags -> MessageClass -> SrcSpan -> SDoc -> IO ()
           logAction _ msgClass srcSpan msg =
@@ -600,11 +607,11 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
               Just buildDir ->
                 Just $ buildDir </> (takeBaseName buildDir ++ "-tmp")
               Nothing -> Nothing
-      env <- getSession                 -- :: Ghc HscEnv
-      let oldLogger = hsc_logger env    -- 提取当前 Logger
+      let oldLogger = hsc_logger env
           newLogger = pushLogHook (const logAction) oldLogger
-          env' = env { hsc_logger = newLogger }
-      setSession env'                    -- 把更新回写回当前会话
+      _ <- liftIO $ initUnits newLogger flags' Nothing mempty
+      let env' = env { hsc_logger = newLogger }
+      setSession env'
       _ <-
         setSessionDynFlags $
         L.foldl'
@@ -616,9 +623,7 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
              })
           [Opt_Haddock]
       targets <- mapM (\m -> guessTarget m (Nothing :: Maybe UnitId) (Nothing :: Maybe Phase)) modules
-      liftIO $ print "begin target"
-      liftIO $ print $ showSDocUnsafe $ ppr targets
-      liftIO $ print "after target"
+      liftIO $ print $ "setTarget : " <> (showSDocUnsafe $ ppr targets)
       setTargets targets
       liftIO $ print "begin load LoadAllTargets"
       _ <- load LoadAllTargets
@@ -697,9 +702,9 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
 
 findHaskellModulePath ::
      FilePath -> [FilePath] -> ModSummary -> IO (Maybe HCE.HaskellModulePath)
-findHaskellModulePath buildDir srcDirs modSum =
+findHaskellModulePath buildDir srcDirs modSum = do
   case normalise <$> (ml_hs_file . ms_location $ modSum) of
-    Just modulePath ->
+    Just modulePath -> do
       let toHaskellModulePath = return . Just . HCE.HaskellModulePath . T.pack
           removeTmpDir path =
             case splitDirectories path of
@@ -729,9 +734,12 @@ findHaskellModulePath buildDir srcDirs modSum =
                 case mbFoundPath of
                   Just p -> toHaskellModulePath p
                   _ -> return Nothing
-              | otherwise -> return Nothing
-            Nothing -> toHaskellModulePath modulePath
-    Nothing -> return Nothing
+              | otherwise -> do
+                return Nothing
+            Nothing -> do
+              toHaskellModulePath modulePath
+    Nothing -> do
+      return Nothing
 
 indexModule ::
      HCE.SourceCodePreprocessing
