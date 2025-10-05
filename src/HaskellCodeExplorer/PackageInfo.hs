@@ -576,13 +576,14 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
             , T.pack . show $ ex
             ]
         return ([], deps)
+  logDebugN $ T.pack $ "------------------------------------------------------------------------"
+  logDebugN $ T.pack $ "indexBuildComponent"
   ghandleSync onError $
     runGhcT (Just libdir) $ do
-      liftIO $ print $ "----------------------------------------------------------------------------------------"
-      liftIO $ print $ (T.append "Component id : " $ HCE.getComponentId componentId)
-      liftIO $ print $ (T.append "Modules : " $ T.pack $ show modules)
-      liftIO $ print $ (T.append "srcDirs : " $ T.pack $ show srcDirs)
-      liftIO $ print $
+      logDebugN $ (T.append "Component id : " $ HCE.getComponentId componentId)
+      logDebugN $ (T.append "Modules : " $ T.pack $ show modules)
+      logDebugN $ (T.append "srcDirs : " $ T.pack $ show srcDirs)
+      logDebugN $
         (T.append "GHC command line options : " $
          T.pack $ L.unwords (options ++ modules))
       flags <- getSessionDynFlags
@@ -623,11 +624,11 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
              })
           [Opt_Haddock]
       targets <- mapM (\m -> guessTarget m (Nothing :: Maybe UnitId) (Nothing :: Maybe Phase)) modules
-      liftIO $ print $ "setTarget : " <> (showSDocUnsafe $ ppr targets)
+      logDebugN $ T.pack $ "setTarget : " <> (showSDocUnsafe $ ppr targets)
       setTargets targets
-      liftIO $ print "begin load LoadAllTargets"
+      logDebugN "load LoadAllTargets"
       _ <- load LoadAllTargets
-      liftIO $ print "after load LoadAllTargets"
+      logDebugN "getModuleGraph"
       modGraph <- getModuleGraph
       let topSortNodes = flattenSCCs (topSortModuleGraph False modGraph Nothing)
           toModSummary :: ModuleGraphNode -> Maybe ModSummary
@@ -752,7 +753,7 @@ indexModule ::
                                               , ModuleDependencies))
 indexModule sourceCodePreprocessing componentId currentPackageId flags deps (modulePath, modSum) =
   gtrySync $ do
-    logDebugN (T.append "Indexing " $ HCE.getHaskellModulePath modulePath)
+    logInfoN (T.append "Indexing " $ HCE.getHaskellModulePath modulePath)
     parsedModule <- parseModule modSum
     typecheckedModule <- typecheckModule parsedModule -- If module has import error. here will throw exception
     hscEnv <- getSession
