@@ -543,7 +543,7 @@ createDeclarations flags hsGroup typeEnv exportedSet transformation =
       nameType :: Name -> Maybe HCE.Type
       nameType n =
         case lookupIdInTypeEnv typeEnv n of
-          Just i -> Just . mkType flags . varType $ i
+          Just i -> Just . mkType . varType $ i
           Nothing -> Nothing
       valToDeclarations :: LHsBindLR GhcRn GhcRn -> [HCE.Declaration]
       valToDeclarations (L locAnn bind) =
@@ -784,7 +784,7 @@ addNameToMaps environment (idInfoMap, idOccMap) mbKind mbName descr lineNumber c
               HCE.InternalId . T.pack . show . getKey . nameUnique <$> mbName
           , isBinder = False
           , instanceResolution = Nothing
-          , idOccType = mkType flags <$> mbKind
+          , idOccType = mkType <$> mbKind
           , typeArguments = Nothing
           , description = descr
           , sort =

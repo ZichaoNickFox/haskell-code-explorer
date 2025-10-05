@@ -700,28 +700,28 @@ wrapperTypes (WpTyLam _) = []
 wrapperTypes (WpTyApp t) = [t]
 wrapperTypes (WpLet _) = []
 
-mkType :: DynFlags -> Type -> HCE.Type
-mkType flags typ =
+mkType :: Type -> HCE.Type
+mkType typ =
   let typeExpanded = expandTypeSynonyms typ
-      typeComponents = toTypeComponents flags typ
-      typeComponentsExpanded = toTypeComponents flags typeExpanded
+      typeComponents = toTypeComponents typ
+      typeComponentsExpanded = toTypeComponents typeExpanded
    in HCE.Type
         typeComponents
         (if typeComponents /= typeComponentsExpanded
            then Just typeComponentsExpanded
            else Nothing)
 
-typeToText :: DynFlags -> Type -> T.Text
-typeToText flags = T.pack . showSDocUnsafe . ppr . toIfaceType
+typeToText :: Type -> T.Text
+typeToText = T.pack . showSDocUnsafe . ppr . toIfaceType
 
-toTypeComponents :: DynFlags -> Type -> [HCE.TypeComponent]
-toTypeComponents flags typ =
+toTypeComponents :: Type -> [HCE.TypeComponent]
+toTypeComponents typ =
   let signature =
-        typeToText flags $
+        typeToText $
         updateOccNames (\_unique occName -> ";" ++ drop 2 occName ++ ";") typ
       -- Signature with OccNames and uniques
       signatureWithUniques =
-        typeToText flags $
+        typeToText $
         updateOccNames
           (\unique occName -> ";," ++ occName ++ "," ++ unique ++ ";")
           typ

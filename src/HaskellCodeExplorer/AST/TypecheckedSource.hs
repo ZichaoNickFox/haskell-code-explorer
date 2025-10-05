@@ -311,7 +311,7 @@ addExprInfo span mbType descr sort = do
           Composite ->
             let exprInfo =
                   HCE.ExpressionInfo
-                    {exprType = mkType flags <$> mbType, description = descr}
+                    {exprType = mkType <$> mbType, description = descr}
                 interval =
                   IVM.OpenInterval (startLine, startCol) (endLine, endCol)
                 exprInfoMap' = IVM.insert interval exprInfo exprInfoMap
@@ -325,8 +325,8 @@ addExprInfo span mbType descr sort = do
                     , instanceResolution = Nothing
                     , idOccType =
                         case mbHsWrapper of
-                          Just w -> mkType flags <$> (applyWrapper w <$> mbType)
-                          Nothing -> mkType flags <$> mbType
+                          Just w -> mkType <$> (applyWrapper w <$> mbType)
+                          Nothing -> mkType <$> mbType
                     , typeArguments = Nothing
                     , description = descr
                     , sort = HCE.ValueId
@@ -416,8 +416,8 @@ traceInstanceResolution environment c ts = go c ts S.empty
                                predTypes
                           in HCE.Instance
                                (instanceToText flags inst)
-                               (mkType flags . idType $ is_dfun inst)
-                               (map (mkType flags) instTypes)
+                               (mkType . idType $ is_dfun inst)
+                               (map mkType instTypes)
                                (nameLocationInfo
                                 (envUnitState environment) flags (envPackageId environment)
                                 (envComponentId environment) (envTransformation environment)
@@ -461,7 +461,7 @@ mkIdentifierInfo environment identifier mbNameFromRenamedSource =
         , occName = HCE.OccName $ nameToText name
         , demangledOccName = demangleOccName name
         , nameSpace = nameSpace
-        , idType = mkType flags $ varType identifier
+        , idType = mkType $ varType identifier
         , locationInfo = locationInfo
         , details = mbIdDetails identifier
         , doc =
@@ -530,8 +530,8 @@ mkIdentifierOccurrence environment identifier nameFromRenamedSource mbInstTypes 
         (Just . HCE.InternalId . T.pack . show . getKey . nameUnique $ nameFromRenamedSource)
         isBinder
         mbInstanceResolution
-        (mkType flags . fst <$> mbInstTypes)
-        (map (mkType flags) . snd <$> mbInstTypes)
+        (mkType . fst <$> mbInstTypes)
+        (map mkType . snd <$> mbInstTypes)
         descr
         (if isId identifier
            then HCE.ValueId
