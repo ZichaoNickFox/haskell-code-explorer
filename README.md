@@ -40,16 +40,12 @@ Reading and understanding code is an essential part of the software development 
 * Semantic highlighting
 
 ## Installation
+At the moment Haskell Code Explorer supports GHC 9.10.2
 
 ```bash
 git clone https://github.com/alexwl/haskell-code-explorer
 cd haskell-code-explorer
 ```
-
-To build Haskell Code Explorer Stack ([https://docs.haskellstack.org/en/stable/README/](https://docs.haskellstack.org/en/stable/README/)) is needed.
-
-At the moment Haskell Code Explorer supports GHC 9.10.2
-
 For GHC 9.10.2:
 
 ```bash
@@ -60,6 +56,13 @@ For GHC 9.10.2:
 
 ```bash
 stack --stack-yaml=stack-9.10.2.yaml install
+```
+
+## Debugging
+Add debugging codes to `haskell-code-explorer` and `vendor/ghc/compiler`.
+
+```
+stack run -- haskell-code-indexer -v
 ```
 
 ## Indexing source code of a Cabal package

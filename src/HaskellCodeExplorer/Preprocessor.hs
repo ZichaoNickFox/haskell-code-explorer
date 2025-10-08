@@ -13,6 +13,7 @@ import Data.Foldable (foldl')
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Set as S
+import Prelude
 import qualified Data.Text as T
 import HaskellCodeExplorer.Types
   ( FileLocation(..)

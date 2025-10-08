@@ -43,6 +43,7 @@ import Options.Applicative
   , value
   )
 import Paths_haskell_code_explorer as HSE (version)
+import Prelude
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(..), exitWith)
 import System.FilePath ((</>))

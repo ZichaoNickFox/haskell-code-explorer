@@ -21,3 +21,5 @@ stack*.yaml.lock
 
 *.dyn_hi
 *.dyn_o
+
+vendor

@@ -1,8 +1,9 @@
 resolver: lts-24.11
 packages:
-- '.'
+  - .
+  - vendor/ghc/compiler
+  - vendor/ghc/utils/deriveConstants
+  - vendor/ghc/utils/genprimopcode
 allow-newer: true
 extra-deps:
-  - Cabal-3.12.1.0
-  - Cabal-syntax-3.12.1.0
-  - ghc-9.10.2
+  - Cabal-3.8.1.0@sha256:77121d8e1aff14a0fd95684b751599db78a7dd26d55862d9fcef27c88b193e9d,12609

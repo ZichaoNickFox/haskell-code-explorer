@@ -14,4 +14,8 @@
 --   package *
 --     optimization: 2
 
-with-compiler: ghc-8.4.4
+packages:
+  ./haskell-code-explorer.cabal
+  ./vendor/ghc/compiler/ghc.cabal
+  ./vendor/ghc/utils/deriveConstants/deriveConstants.cabal
+  ./vendor/ghc/utils/genprimopcode/genprimopcode.cabal

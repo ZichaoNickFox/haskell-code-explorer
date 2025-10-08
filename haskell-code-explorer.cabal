@@ -11,7 +11,6 @@ maintainer:          alexey.a.kiryushin@gmail.com
 build-type:          Simple
 
 library
-  default-language: Haskell2010
   exposed-modules: HaskellCodeExplorer.PackageInfo
                  , HaskellCodeExplorer.ModuleInfo
                  , HaskellCodeExplorer.Types
@@ -20,27 +19,27 @@ library
                  , HaskellCodeExplorer.AST.RenamedSource
                  , HaskellCodeExplorer.AST.TypecheckedSource
   hs-source-dirs: src
-  ghc-options:   -Wall -O2 -funbox-strict-fields -package ghc
+  ghc-options:   -Wall -O2 -funbox-strict-fields
   build-depends: IntervalMap
                , aeson
                , attoparsec
                , base
                , blaze-html
-               , deepseq
+               , bytestring
                , Cabal
                , Cabal-syntax
-               , bytestring
                , cereal
                , containers
+               , deepseq
                , directory
                , directory-tree
                , exceptions
                , filemanip
                , filepath
+               , haddock-library
+               , hashable
                , ghc
                , ghc-paths
-               , hashable
-               , haddock-library
                , mtl
                , process
                , syb
@@ -53,11 +52,12 @@ library
                , extra
 
 executable haskell-code-indexer
-  main-is:             Indexer.hs
-  ghc-options:        -Wall -rtsopts -O2 -funbox-strict-fields -package ghc
-  other-modules:      Paths_haskell_code_explorer
-  autogen-modules: Paths_haskell_code_explorer
-  hs-source-dirs: app
+  main-is:          Indexer.hs
+  ghc-options:      -Wall -rtsopts -O2 -funbox-strict-fields
+  other-modules:    Paths_haskell_code_explorer
+  autogen-modules:  Paths_haskell_code_explorer
+  hs-source-dirs:   app
+  default-extensions: MonoLocalBinds
   build-depends:     IntervalMap
                    , aeson
                    , base
@@ -65,23 +65,27 @@ executable haskell-code-indexer
                    , Cabal
                    , Cabal-syntax
                    , cereal
+                   , containers
+                   , deepseq
                    , directory
+                   , exceptions
                    , filepath
-                   , ghc
                    , optparse-applicative
-                   , text
+                   , process
                    , time
+                   , text
                    , unordered-containers
                    , uri-encode
                    , fast-logger
                    , monad-logger
+                   , os-string
                    , zlib
                    , haskell-code-explorer
-  default-language:    Haskell2010
+                   , rts
 
 executable haskell-code-server
   main-is:             Server.hs
-  ghc-options:        -Wall -O2 -rtsopts -funbox-strict-fields -threaded -package ghc
+  ghc-options:        -Wall -O2 -rtsopts -funbox-strict-fields
   hs-source-dirs: app,src
   other-modules: HaskellCodeExplorer.Types, Store
   build-depends:     IntervalMap
@@ -95,7 +99,6 @@ executable haskell-code-server
                    , exceptions
                    , filemanip
                    , filepath
-                   , ghc
                    , blaze-html
                    , text
                    , unordered-containers
@@ -127,7 +130,6 @@ executable haskell-code-server
   build-depends: ghc-compact
 
 test-suite test
-  default-language: Haskell2010
   type: exitcode-stdio-1.0
   ghc-options:    -Wall
   hs-source-dirs: test
