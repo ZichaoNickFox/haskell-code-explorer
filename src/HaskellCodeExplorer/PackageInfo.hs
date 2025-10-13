@@ -70,6 +70,8 @@ import GHC.Driver.Session
   , ModRenaming(..)
   , PackageArg(..)
   , PackageFlag(..)
+  , WarningFlag(..)
+  , wopt_unset
   )
 import GHC.Utils.Exception (ExceptionMonad(..), handle)
 import GHC.Driver.Backend (Backend(..))
@@ -610,19 +612,17 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
               Just buildDir ->
                 Just $ buildDir </> (takeBaseName buildDir ++ "-tmp")
               Nothing -> Nothing
-      _ <-
-        setSessionDynFlags $
-        L.foldl'
-          gopt_set
-          (flags'
-             { ghcLink = LinkInMemory
-             , ghcMode = CompManager
-             , importPaths = importPaths flags' ++ maybeToList mbTmpDir
-             , packageFlags = [ExposePackage "-package ghc"
-                 (PackageArg "ghc")
-                 (ModRenaming True [])]
-             })
-          [Opt_Haddock, Opt_ExternalInterpreter]
+          baseFlags = (flags'
+            { ghcLink = LinkInMemory
+            , ghcMode = CompManager
+            , importPaths = importPaths flags' ++ maybeToList mbTmpDir
+            , packageFlags = [ExposePackage "-package ghc"
+                (PackageArg "ghc")
+                (ModRenaming True [])]
+            })
+          optFlags = L.foldl' gopt_set baseFlags [Opt_Haddock, Opt_ExternalInterpreter]
+          noWarnFlags = L.foldl' wopt_unset optFlags [minBound .. maxBound :: WarningFlag]
+      _ <- setSessionDynFlags noWarnFlags
       targets <- mapM (\m -> guessTarget m (Nothing :: Maybe UnitId) (Nothing :: Maybe Phase)) modules
       logDebugN $ T.pack $ "setTarget : " <> (showSDocUnsafe $ ppr targets)
       setTargets targets
