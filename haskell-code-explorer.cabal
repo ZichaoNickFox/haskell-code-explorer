@@ -53,7 +53,7 @@ library
 
 executable haskell-code-indexer
   main-is:          Indexer.hs
-  ghc-options:      -Wall -rtsopts -O2 -funbox-strict-fields
+  ghc-options:      -Wall -rtsopts -O2 -funbox-strict-fields -package ghc
   other-modules:    Paths_haskell_code_explorer
   autogen-modules:  Paths_haskell_code_explorer
   hs-source-dirs:   app
@@ -69,19 +69,21 @@ executable haskell-code-indexer
                    , deepseq
                    , directory
                    , exceptions
+                   , fast-logger
                    , filepath
+                   , ghc
+                   , haskell-code-explorer
+                   , hspec
+                   , monad-logger
                    , optparse-applicative
+                   , os-string
+                   , rts
                    , process
                    , time
                    , text
                    , unordered-containers
                    , uri-encode
-                   , fast-logger
-                   , monad-logger
-                   , os-string
                    , zlib
-                   , haskell-code-explorer
-                   , rts
 
 executable haskell-code-server
   main-is:             Server.hs

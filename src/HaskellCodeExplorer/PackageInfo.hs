@@ -67,6 +67,9 @@ import GHC.Driver.Session
   , GhcMode(..)
   , gopt_set
   , parseDynamicFlagsCmdLine
+  , ModRenaming(..)
+  , PackageArg(..)
+  , PackageFlag(..)
   )
 import GHC.Utils.Exception (ExceptionMonad(..), handle)
 import GHC.Driver.Backend (Backend(..))
@@ -591,7 +594,6 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
         parseDynamicFlagsCmdLine
           flags
           (L.map noLoc . L.filter ("-Werror" /=) $ options) -- -Werror flag makes warnings fatal
-      env <- getSession                 -- :: Ghc HscEnv
       logFn <- askLoggerIO
       let logAction :: LogFlags -> MessageClass -> SrcSpan -> SDoc -> IO ()
           logAction _ msgClass srcSpan msg =
@@ -608,11 +610,6 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
               Just buildDir ->
                 Just $ buildDir </> (takeBaseName buildDir ++ "-tmp")
               Nothing -> Nothing
-      let oldLogger = hsc_logger env
-          newLogger = pushLogHook (const logAction) oldLogger
-      _ <- liftIO $ initUnits newLogger flags' Nothing mempty
-      let env' = env { hsc_logger = newLogger }
-      setSession env'
       _ <-
         setSessionDynFlags $
         L.foldl'
@@ -621,8 +618,11 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
              { ghcLink = LinkInMemory
              , ghcMode = CompManager
              , importPaths = importPaths flags' ++ maybeToList mbTmpDir
+             , packageFlags = [ExposePackage "-package ghc"
+                 (PackageArg "ghc")
+                 (ModRenaming True [])]
              })
-          [Opt_Haddock]
+          [Opt_Haddock, Opt_ExternalInterpreter]
       targets <- mapM (\m -> guessTarget m (Nothing :: Maybe UnitId) (Nothing :: Maybe Phase)) modules
       logDebugN $ T.pack $ "setTarget : " <> (showSDocUnsafe $ ppr targets)
       setTargets targets
@@ -633,7 +633,7 @@ indexBuildComponent sourceCodePreprocessing currentPackageId componentId deps@(f
       let topSortNodes = flattenSCCs (topSortModuleGraph False modGraph Nothing)
           toModSummary :: ModuleGraphNode -> Maybe ModSummary
           toModSummary (ModuleNode _ ms) = Just ms
-          toModSummary _               = Nothing  -- 忽略非源码节点（如 Backpack/instantiation）
+          toModSummary _               = Nothing
           topSortMods = mapMaybe toModSummary topSortNodes
           buildDir =
             addTrailingPathSeparator . normalise . fromMaybe "" . hiDir $
