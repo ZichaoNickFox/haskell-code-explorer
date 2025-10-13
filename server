@@ -1,0 +1,1 @@
+haskell-code-server --package . --package ../hakyll --port 8080

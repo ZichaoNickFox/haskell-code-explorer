@@ -1,0 +1,2 @@
+stack run -- haskell-code-indexer -v
+stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v -p ../hakyll
