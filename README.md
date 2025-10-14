@@ -61,7 +61,8 @@ stack --stack-yaml=stack-9.10.2.yaml install
 ## Debugging
 Modify `haskell-code-explorer` and `vendor/ghc/compiler`.
 Modify `index` script
-```
+```bash
+sudo chmod 777 index
 ./index
 ```
 
@@ -89,6 +90,7 @@ stack --resolver=lts-24.11 exec --no-ghc-package-path haskell-code-indexer -- IN
 
 Or modify and execute `index` script
 ```bash
+sudo chmod 777 index
 ./index
 ```
 
@@ -133,6 +135,12 @@ Load multiple indexed packages and start the server:
 
 ```bash
 haskell-code-server --package PATH1 --package PATH2 --package PATH3 --port 8080
+```
+
+Or modify or execute `server` script
+```bash
+sudo chmod 777 server
+./server
 ```
 
 Load the indexed package and start the server, use Hoogle API (https://github.com/ndmitchell/hoogle/blob/3dbf68bfd701f942d3af2e6debb74a0a78cd392e/docs/API.md#json-api) to get documentation for functions and types defined in other packages (`haskell-code-server` makes requests to https://hoogle.haskell.org/):

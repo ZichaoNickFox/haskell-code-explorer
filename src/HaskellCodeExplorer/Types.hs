@@ -289,12 +289,14 @@ data IdDetails
   | DataConWorkId
   | DataConWrapId
   | ClassOpId
+  | RepPolyId
   | PrimOpId
   | FCallId
   | TickBoxOpId
   | DFunId
   | CoVarId
   | JoinId
+  | WorkerLikeId
   deriving (Show, Eq, Ord, Generic, Data)
 
 -- | Each Haskell identifier has an 'InternalId' that is unique within a single module

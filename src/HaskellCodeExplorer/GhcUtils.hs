@@ -270,12 +270,14 @@ mbIdDetails v
       DataConWorkId _ -> Just HCE.DataConWorkId
       DataConWrapId _ -> Just HCE.DataConWrapId
       ClassOpId _ _ -> Just HCE.ClassOpId
+      RepPolyId _ -> Just HCE.RepPolyId
       PrimOpId _ _ -> Just HCE.PrimOpId
       FCallId _ -> Just HCE.FCallId
       TickBoxOpId _ -> Just HCE.TickBoxOpId
       DFunId _ -> Just HCE.DFunId
       CoVarId -> Just HCE.CoVarId
       JoinId _ _ -> Just HCE.JoinId
+      WorkerLikeId _ -> Just HCE.WorkerLikeId
 mbIdDetails _ = Nothing
 
 --------------------------------------------------------------------------------
