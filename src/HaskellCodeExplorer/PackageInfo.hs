@@ -44,6 +44,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Version (Version(..), showVersion, makeVersion)
 import GHC.Driver.Phases (Phase)
+import System.Directory (canonicalizePath)
 import Data.Bool
 import GHC.Utils.Logger
   ( getLogger
@@ -169,7 +170,7 @@ createPackageInfo ::
   -> [String]
   -> LoggingT IO (HCE.PackageInfo HCE.ModuleInfo)
 createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreprocessing additionalGhcOptions ignoreDirectories = do
-  packageDirectoryAbsPath <- liftIO $ makeAbsolute packageDirectoryPath
+  packageDirectoryAbsPath <- liftIO $ canonicalizePath =<< (makeAbsolute packageDirectoryPath)
   currentDirectory <- liftIO getCurrentDirectory
   liftIO $ setCurrentDirectory packageDirectoryAbsPath
 
