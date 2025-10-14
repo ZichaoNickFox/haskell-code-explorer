@@ -1,2 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+stack build
 stack run -- haskell-code-indexer -v
-stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v -p ../hakyll
+# stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v -p ../hakyll
+
+# stack --stack-yaml ../vendor/ghc/stack.yaml exec -- haskell-code-indexer -v -p ../hakyll

@@ -23,15 +23,19 @@ import GHC.Core.TyCon (tyConDataCons)
 import GHC.Data.Bag (bagToList)
 import GHC.Types.Basic (Origin(..))
 import GHC.Core.Class (Class, classTyVars, className)
-import Control.Monad (return, unless, void)
+import Control.Monad (return, unless, void, forM_)
 import Control.Monad.State.Strict (State, get, modify')
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntervalMap.Strict as IVM
 import GHC.Unit.State (UnitState)
+import Control.Monad (zipWithM_)
 import qualified Data.Map.Strict as M
 import GHC.Core.ConLike (ConLike(..))
-import GHC.Core.DataCon  (dataConWrapId)
+import GHC.Core.DataCon 
+  ( dataConWrapId
+  , dataConWorkId
+  )
 import GHC.Core.PatSyn   (patSynBuilder)
 import GHC.Core.Predicate
 import GHC.Core.Type (mkVisFunTy, mkVisFunTyMany, splitForAllTyCoVars)
@@ -50,10 +54,12 @@ import GHC.Types.TyThing (TyThing(..))
 import GHC.Core.DataCon (dataConTyCon, dataConRepType)
 import GHC.Hs
   ( ABExport(..)
+  , LHsRecUpdFields(..)
   , anchor
   , unXRec
   , NoExtField(..)
   , LIdP(..)
+  , hsRecFields
   , HsRecUpdField
   , noAnnSrcSpan
   , noLocA
@@ -72,6 +78,7 @@ import GHC.Hs
   , XXExprGhcTc(..)
   , ArithSeqInfo(..)
   , FieldOcc(..)
+  , LHsRecUpdField(..)
   , GRHS(..)
   , GRHSs(..)
   , HsBindLR(..)
@@ -110,6 +117,7 @@ import GHC.Hs
   , PatSynBind(..)
   , StmtLR(..)
   , selectorAmbiguousFieldOcc
+  , XRec(..)
   , XRecordCon (..)
   , XRecordUpd (..)
   , XListPat (..)
@@ -127,7 +135,11 @@ import GHC.Core.InstEnv
   , is_dfun
   , lookupUniqueInstEnv
   )
-import GHC.Types.Name (Name, nameOccName, nameUnique)
+import GHC.Types.Name
+  ( getSrcSpan
+  , Name
+  , nameOccName
+  , nameUnique)
 import Prelude hiding (span)
 import GHC.Types.SrcLoc
    ( GenLocated(..)
@@ -581,6 +593,16 @@ tidyType typ = do
 foldTypecheckedSource :: LHsBinds GhcTc -> State ASTState ()
 foldTypecheckedSource = foldLHsBindsLR
 
+
+-- GHC 9.10: tuple args are [HsTupArg GhcTc]
+foldHsTupArg :: HsTupArg GhcTc -> State ASTState (Maybe Type, TupArg)
+foldHsTupArg (Present _ e) = do
+  ty <- foldLHsExpr e
+  pure (ty, TupArgPresent)
+foldHsTupArg (Missing _)   = pure (Nothing, TupArgMissing)
+foldHsTupArg (XTupArg _)   = pure (Nothing, TupArgMissing)
+
+-- ExplicitTuple branch (GHC 9.10 shape)
 foldLHsExpr :: LHsExpr GhcTc -> State ASTState (Maybe Type)
 foldLHsExpr (L _span (XExpr _)) = return Nothing
 foldLHsExpr (L _ (HsOverLit _ (XOverLit _))) = return Nothing
@@ -688,22 +710,24 @@ foldLHsExpr (L ann e@(SectionR ext operator operand)) = do
           Nothing                 -> Nothing
   addExprInfo span typ "SectionR" (exprSort e)
   return typ
--- foldLHsExpr expr@(L spanA e@(ExplicitTuple _ tupArgs boxity)) = do
---   tupleArgs <- mapM foldLHsTupArg tupArgs
---   let sectionArgs = mapMaybe fst . filter ((== TupArgMissing) . snd) $ tupleArgs
---       argTys      = mapMaybe fst tupleArgs
---       resultType  = pure $ foldr mkVisFunTyMany (mkTupleTy boxity argTys) sectionArgs
---   tidyEnv <- astStateTidyEnv <$> get
---   addExprInfo
---     (getLocA expr)
---     (snd . tidyOpenType tidyEnv <$> resultType)
---     "ExplicitTuple"
---     (exprSort e)
---   pure resultType
-foldLHsExpr (L _span (ExplicitSum _ _ _ expr)) = do
-  -- TODO
+foldLHsExpr expr@(L _ e@(ExplicitTuple _ tupArgs boxity)) = do
+  tupleArgs <- mapM foldHsTupArg tupArgs
+  let presentArgTys = mapMaybe fst tupleArgs
+      sectionArgTys = mapMaybe fst
+                    $ filter ((== TupArgMissing) . snd) tupleArgs
+      rawResultTy   = Just $
+        foldr mkVisFunTyMany (mkTupleTy boxity presentArgTys) sectionArgTys
+  tidyEnv <- astStateTidyEnv <$> get
+  let tidiedResultTy = snd . tidyOpenType tidyEnv <$> rawResultTy
+  addExprInfo (getLocA expr) tidiedResultTy "ExplicitTuple" (exprSort e)
+  pure tidiedResultTy
+foldLHsExpr (L ann e@(ExplicitSum _ _ _ expr)) = do
   _ <- foldLHsExpr expr
-  return Nothing
+  restoreTidyEnv $ do
+    let span = locA ann
+    typ <- tidyType (hsExprType e)
+    addExprInfo span (Just typ) "ExplicitSum" (exprSort e)
+    pure (Just typ)
 foldLHsExpr (L l e@(HsCase _ expr (MG (MatchGroupTc {..}) mg_alts))) =
   restoreTidyEnv $ do
     typ <- tidyType mg_res_ty
@@ -747,12 +771,24 @@ foldLHsExpr (L ann e@(RecordCon _ conExpr binds)) = do
     addExprInfo (locA ann) mbConType "RecordCon" (exprSort e)
     _ <- foldHsRecFields binds
     return mbConType
--- TODO
--- foldLHsExpr (L ann (RecordUpd { rupd_expr = expr, rupd_flds = updFields })) = do
---   typ <- foldLHsExpr expr
---   addExprInfo (locA ann) typ "RecordUpd" (exprSort (RecordUpd expr updFields))
---   mapM_ foldLHsRecUpdField updFields
---   return typ
+foldLHsExpr (L ann e@(RecordUpd
+  { rupd_expr = (expr0 :: LHsExpr GhcTc)
+  , rupd_flds = flds
+  })) = do
+  typ <- foldLHsExpr expr0
+  addExprInfo (locA ann) typ "RecordUpd" (exprSort e)
+  case flds of
+    RegularRecUpdFields{ recUpdFields = xs } ->        -- regular: a{ x = ... }
+      forM_ xs $ \lf -> do
+        let fb = unLoc lf :: HsRecUpdField GhcTc GhcTc
+        _ <- foldLHsExpr (hfbRHS fb)
+        pure ()
+    OverloadedRecUpdFields{ olRecUpdFields = ps } ->   -- overloaded: a{ x.y = ... }
+      forM_ ps $ \lp -> do
+        let fb = unLoc lp                               -- fb :: HsFieldBind (LFieldLabelStrings GhcTc) (LHsExpr GhcTc)
+        _ <- foldLHsExpr (hfbRHS fb)
+        pure ()
+  pure typ
 foldLHsExpr (L ann e@(ExprWithTySig _ expr _)) = do
   typ <- foldLHsExpr expr
   addExprInfo (locA ann) typ "ExprWithTySig" (exprSort e)
@@ -824,28 +860,12 @@ foldLHsRecField (L ann (HsFieldBind { hfbLHS = L idAnn (FieldOcc identifier _)
     unless pun $ void (foldLHsExpr arg)
     return . Just . varType $ identifier'
 
--- TODO
--- foldLHsRecUpdField :: GenLocated SrcSpanAnnA (HsFieldBind (GenLocated SrcSpanAnnA (AmbiguousFieldOcc GhcTc)) (GenLocated SrcSpanAnnA (HsExpr GhcTc)))
---                    -> State ASTState (Maybe Type)
--- foldLHsRecUpdField (L span (HsFieldBind { hfbLHS = L idSpan recField
---                                         , hfbRHS = arg
---                                         , hfbPun = pun })) =
---   restoreTidyEnv $ do
---     let selectorId = selectorAmbiguousFieldOcc recField
---     (identifier', mbTypes) <- tidyIdentifier selectorId
---     -- Name of the selectorId is not 'correct' (Internal instead of External) :
---     -- https://github.com/ghc/ghc/blob/321b420f4582d103ca7b304867b916a749712e9f/compiler/typecheck/TcExpr.hs#L2424
---     typeEnv <- envTypeEnv . astStateEnv <$> get
---     let selName = varName selectorId
---         originalName =
---           case lookupTypeEnv typeEnv selName of
---             Just (AnId originalSelId) -> varName originalSelId
---             _ -> selName
---     let identifier'' = setVarName identifier' originalName
---     addIdentifierToIdSrcSpanMap idSpan identifier'' mbTypes
---     addExprInfo span (Just . varType $ identifier'') "HsRecUpdField" Composite
---     unless pun $ void (foldLHsExpr arg)
---     return . Just . varType $ identifier''
+foldHsRecUpdField
+  :: HsFieldBind (XRec GhcTc (AmbiguousFieldOcc GhcTc)) (LHsExpr GhcTc)
+  -> State ASTState ()
+foldHsRecUpdField fb = do
+  _ <- foldLHsExpr (hfbRHS fb)  -- use the selector, not a record pattern
+  pure ()
 
 data TupArg
   = TupArgPresent
@@ -1043,30 +1063,38 @@ foldLHsBindLR (L _ PatBind {..}) _ = do
   _ <- foldGRHSs pat_rhs
   return Nothing
 foldLHsBindLR (L _ VarBind {..}) _ = return Nothing
--- TODO
--- foldLHsBindLR (L _ AbsBinds{ abs_exports, abs_binds }) = do
---   let polys :: [Id]
---       polys = map abe_poly abs_exports
---   mapM_ (\(b,i) -> foldLHsBindLR b (Just i))
---         (zip (bagToList abs_binds) polys)
---   return Nothing
--- foldLHsBindLR (L _ (PatSynBind _ PSB {..})) _ =
---   restoreTidyEnv $ do
---     _ <- foldLPat psb_def
---     _ <-
---       let addId :: LIdP GhcTc -> State ASTState ()
---           addId (L l i) = do
---             (i', _) <- tidyIdentifier i
---             addIdentifierToIdSrcSpanMap (locA l) i' Nothing
---        in case psb_args of
---             InfixCon id1 id2      -> addId id1 >> addId id2
---             PrefixCon _tyArgs ids -> mapM_ addId ids
---             RecCon recs ->
---               mapM_
---                 (\(RecordPatSynField selId patVar) ->
---                   addId (L (getFieldOccAnn selId) (foExt selId)) >> addId patVar)
---                 recs
---     return Nothing
+foldLHsBindLR (L _ (XHsBindsLR (AbsBinds { abs_exports, abs_binds }))) _ = do
+  let polys :: [Id]
+      polys = map abe_poly abs_exports
+      binds :: [LHsBindLR GhcTc GhcTc]
+      binds = bagToList abs_binds
+  zipWithM_ (\b i -> foldLHsBindLR b (Just i)) binds polys
+  pure Nothing
+foldLHsBindLR (L _ (PatSynBind _ PSB {..})) _ =
+  restoreTidyEnv $ do
+    _ <- foldLPat psb_def
+
+    let addLId :: LIdP GhcTc -> State ASTState ()
+        addLId (L l i) = do
+          (i', _) <- tidyIdentifier i
+          addIdentifierToIdSrcSpanMap (locA l) i' Nothing
+
+        addSelector :: FieldOcc GhcTc -> State ASTState ()
+        addSelector fo = do
+          let i   = foExt fo
+              ssp = getSrcSpan (varName i)
+          (i', _) <- tidyIdentifier i
+          addIdentifierToIdSrcSpanMap ssp i' Nothing
+
+    case psb_args of
+      InfixCon id1 id2      -> addLId id1 >> addLId id2
+      PrefixCon _tyArgs ids -> mapM_ addLId ids
+      RecCon recs           ->
+        mapM_ (\(RecordPatSynField sel patVar) ->
+                 addSelector sel >> addLId patVar)
+              recs
+
+    pure Nothing
 
 foldLPat :: LPat GhcTc -> State ASTState (Maybe Type)
 foldLPat (L _span (XPat _)) = return Nothing
@@ -1108,22 +1136,30 @@ foldLPat (L spanAnn pat@(TuplePat types pats boxity)) = do
   mapM_ foldLPat pats
   return $ Just typ'
 foldLPat (L _span (SumPat _ pat _ _)) = do
-  -- TODO
   _ <- foldLPat pat
   return Nothing
--- foldLPat (L span pat@ConPat {..}) = do
---   let (L idSpan conLike) = pat_con
---       conId =
---         case conLike of
---           RealDataCon dc -> dataConWorkId dc
---           PatSynCon ps -> patSynId ps
---       typ = conLikeResTy (unLoc pat_con) pat_arg_tys
---   (identifier', mbTypes) <- tidyIdentifier conId
---   addIdentifierToIdSrcSpanMap idSpan identifier' mbTypes
---   typ' <- tidyType typ
---   addExprInfo span (Just typ') "ConPat" (patSort pat)
---   _ <- foldHsConPatDetails pat_args
---   return . Just . varType $ identifier'
+
+foldLPat (L ann pat@ConPat{}) = do
+  let conLike = unLoc (pat_con pat)
+      conId   = case conLike of
+                  RealDataCon dc -> dataConWorkId dc
+                  PatSynCon  ps  -> patSynId ps
+      sp      = locA ann
+  (ident', mbTypes) <- tidyIdentifier conId
+  addIdentifierToIdSrcSpanMap sp ident' mbTypes
+  let resTy = varType ident'
+  typ' <- tidyType resTy
+  addExprInfo sp (Just typ') "ConPat" (patSort pat)
+  case pat_args pat of
+    PrefixCon _ as ->
+      forM_ as (void . foldLPat)
+    InfixCon a b -> do
+      void (foldLPat a)
+      void (foldLPat b)
+    RecCon rfs ->
+      forM_ (rec_flds rfs) $ \lf ->
+        void (foldLPat (hfbRHS (unLoc lf)))
+  pure (Just resTy)
 foldLPat (L span p@(ViewPat typ expr pat)) = do
   typ' <- tidyType typ
   addExprInfo (locA span) (Just typ') "ViewPat" (patSort p)
