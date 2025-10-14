@@ -59,10 +59,10 @@ stack --stack-yaml=stack-9.10.2.yaml install
 ```
 
 ## Debugging
-Add debugging codes to `haskell-code-explorer` and `vendor/ghc/compiler`.
-
+Modify `haskell-code-explorer` and `vendor/ghc/compiler`.
+Modify `index` script
 ```
-stack run -- haskell-code-indexer -v
+./index
 ```
 
 ## Indexing source code of a Cabal package
@@ -85,6 +85,11 @@ stack --resolver=lts-24.11 exec --no-ghc-package-path cabal -- update
 Index a package using stack exec:
 ```bash
 stack --resolver=lts-24.11 exec --no-ghc-package-path haskell-code-indexer -- INDEXER_OPTIONS
+```
+
+Or modify and execute `index` script
+```bash
+./index
 ```
 
 `--no-ghc-package-path` option unsets `GHC_PACKAGE_PATH` environment variable. `cabal` fails with the error `Use of GHC's environment variable GHC_PACKAGE_PATH is incompatible with Cabal.` if the `GHC_PACKAGE_PATH` is set.
