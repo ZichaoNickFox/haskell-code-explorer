@@ -39,25 +39,6 @@ Reading and understanding code is an essential part of the software development 
 
 * Semantic highlighting
 
-## Installation
-At the moment Haskell Code Explorer supports GHC 9.10.2
-
-```bash
-git clone https://github.com/alexwl/haskell-code-explorer
-cd haskell-code-explorer
-```
-For GHC 9.10.2:
-
-```bash
-stack install
-```
-
-For GHC 9.10.2:
-
-```bash
-stack --stack-yaml=stack-9.10.2.yaml install
-```
-
 ## Debugging
 Modify `haskell-code-explorer` and `vendor/ghc/compiler`.
 Modify `index` script
@@ -77,6 +58,17 @@ The version of GHC used to build `haskell-code-indexer` must match the version o
 `haskell-code-indexer` requires globally installed GHC and cabal-install (`cabal`). The reason for this is that `haskell-code-indexer` uses `cabal` library to get package build information.
 
 If there is no globally installed GHC on the system, then it is possible to use `stack exec` command ([https://docs.haskellstack.org/en/stable/GUIDE/#exec](https://docs.haskellstack.org/en/stable/GUIDE/#exec)) that adds a path to GHC binaries installed by Stack to `PATH` environment variable.
+
+Unify snapshot of stackage. For ghc 9.10.2, using lts-24.11
+```
+resolver: lts-24.11
+```
+
+Build All targets
+```
+stack ide targets
+stack build --test --bench
+```
 
 Run `cabal update` using stack exec:
 ```bash

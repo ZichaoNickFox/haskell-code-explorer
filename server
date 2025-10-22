@@ -1,1 +1,5 @@
-haskell-code-server --package . --package ../hakyll --port 8080
+haskell-code-server \
+  --package . \
+  --package ../hakyll \
+  --package ../lrucache \
+  --port 8080
