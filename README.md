@@ -39,6 +39,25 @@ Reading and understanding code is an essential part of the software development 
 
 * Semantic highlighting
 
+## Installing
+At the moment Haskell Code Explorer supports GHC 9.10.2
+
+```bash
+git clone https://github.com/alexwl/haskell-code-explorer
+cd haskell-code-explorer
+```
+For GHC 9.10.2:
+
+```bash
+stack install
+```
+
+For GHC 9.10.2:
+
+```bash
+stack --stack-yaml=stack-9.10.2.yaml install
+```
+
 ## Debugging
 Modify `haskell-code-explorer` and `vendor/ghc/compiler`.
 Modify `index` script

@@ -2,4 +2,6 @@ haskell-code-server \
   --package . \
   --package ../hakyll \
   --package ../lrucache \
+  --package ../pandoc \
+  --package ../attoparsec \
   --port 8080

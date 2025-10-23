@@ -2,20 +2,20 @@
 
 set -euo pipefail
 
-# stack build
-# stack install
+stack build
+stack install
 
-# rm -rf ./.haskell-code-explorer
-# stack run -- haskell-code-indexer -v
+rm -rf ./.haskell-code-explorer
+stack --stack-yaml ../haskell-code-explorer/stack.yaml exec -- haskell-code-indexer -v --dist ../haskell-code-explorer/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../haskell-code-explorer
 
-# rm -rf ../hakyll/.haskell-code-explorer
-# stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v -p ../hakyll
+rm -rf ../hakyll/.haskell-code-explorer
+stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v --dist ../hakyll/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../hakyll
 
-# rm -rf ../lrucache/.haskell-code-explorer
-# stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v --dist ../lrucache/dist-newstyle/build/aarch64-osx/ghc-9.10.2/lrucache-1.2.0.1 -p ../lrucache
+rm -rf ../lrucache/.haskell-code-explorer
+stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v --dist ../lrucache/dist-newstyles/dist/aarch64-osx/ghc-9.10.2/ -p ../lrucache
 
-rm -rf ../attoparsec/.haskell-code-explorer
-stack --stack-yaml ../attoparsec/stack.yaml exec -- haskell-code-indexer -v --dist ../attoparsec/dist-newstyle/build/aarch64-osx/ghc-9.10.2/attoparsec-0.14.4 -p ../attoparsec
+rm -rf ../attoparsec/haskell-code-explorer
+stack --stack-yaml ../attoparsec/stack.yaml exec -- haskell-code-indexer -v --dist ../attoparsec/dist-newstyles/dist/aarch64-osx/ghc-9.10.2/ -p ../attoparsec
 
-# rm -rf ../pandoc/.haskell-code-explorer
-# stack --stack-yaml ../pandoc/stack.yaml exec -- haskell-code-indexer -v --dist ../pandoc/dist-newstyle/build/aarch64-osx/ghc-9.10.2/pandoc-3.7.0.2 -p ../pandoc
+rm -rf ../pandoc/.haskell-code-explorer
+stack --stack-yaml ../pandoc/stack.yaml exec -- haskell-code-indexer -v --dist ../pandoc/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../pandoc
