@@ -212,41 +212,50 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
   logInfoN $ T.append "Indexing " $ HCE.packageIdToText currentPackageId
 
   let buildComponents :: [(HCE.ComponentId, [String], (Maybe FilePath, [String]), [FilePath], HCE.ComponentType)]
-      buildComponents = libs pd ++ subLibs pd ++ flibs pd ++ exes pd ++ tests pd ++ benches pd
-
-      libs Distribution.PackageDescription.PackageDescription{library = Just lib} =
-        [ mkLib "lib" lib ]
-      libs _ = []
+      buildComponents = subLibs pd ++ libs pd ++ flibs pd ++ exes pd ++ tests pd ++ benches pd
 
       subLibs Distribution.PackageDescription.PackageDescription{subLibraries = xs} =
-        [ mkLib ("sublib-" <> unUnqualComponentName uqn) l
+        [ mkLib ("sublib-" <> unUnqualComponentName uqn) l []
         | l <- xs
         , LSubLibName uqn <- [libName l]
         ]
+      hiddenLibDirs :: [FilePath]
+      hiddenLibDirs = concat
+        [  map getSymbolicPath (hsSourceDirs (libBuildInfo l))
+        | l <- subLibraries pd ]
+
+      libs Distribution.PackageDescription.PackageDescription{library = Just lib} =
+        [ mkLib "lib" lib hiddenLibDirs ]
+      libs _ = []
 
       flibs Distribution.PackageDescription.PackageDescription{foreignLibs = xs} =
-        [ mkFLib ("flib-" <> unUnqualComponentName (foreignLibName f)) f | f <- xs ]
+        [ mkFLib ("flib-" <> unUnqualComponentName (foreignLibName f)) f
+        | f <- xs ]
 
       exes Distribution.PackageDescription.PackageDescription{executables = xs} =
-        [ mkExe ("exe-" <> unUnqualComponentName (exeName e)) e | e <- xs ]
+        [ mkExe ("exe-" <> unUnqualComponentName (exeName e)) e hiddenLibDirs
+        | e <- xs ]
 
       tests Distribution.PackageDescription.PackageDescription{testSuites = xs} =
-        [ mkTest ("test-" <> unUnqualComponentName (testName t)) t | t <- xs ]
+        [ mkTest ("test-" <> unUnqualComponentName (testName t)) t hiddenLibDirs
+        | t <- xs ]
 
       benches Distribution.PackageDescription.PackageDescription{benchmarks = xs} =
-        [ mkBench ("bench-" <> unUnqualComponentName (benchmarkName b)) b | b <- xs ]
+        [ mkBench ("bench-" <> unUnqualComponentName (benchmarkName b)) b hiddenLibDirs
+        | b <- xs ]
 
       -- helpers
-
-      mkLib cid lib =
+      mkLib :: String -> Library -> [FilePath] 
+               -> (HCE.ComponentId, [String], (Maybe FilePath, [String]), [FilePath], HCE.ComponentType)
+      mkLib cid lib hiddenLibDirs =
         let bi        = libBuildInfo lib
-            srcDirs   = collectHsDirs distDir bi
+            srcDirs   = collectHsDirs distDir bi []
             exposeds  = map Distribution.Pretty.prettyShow (exposedModules lib)
             others    = map Distribution.Pretty.prettyShow (otherModules bi)
             sigs      = map Distribution.Pretty.prettyShow (signatures lib)
             mods      = exposeds ++ others ++ sigs
         in ( HCE.ComponentId (T.pack cid)
-           , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+           , ghcOptionsForBI packageDirectoryAbsPath distDir bi hiddenLibDirs
            , (Nothing, mods)
            , srcDirs
            , HCE.Lib
@@ -254,32 +263,32 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
 
       mkFLib cid fl =
         let bi      = foreignLibBuildInfo fl
-            srcDirs = collectHsDirs distDir bi
+            srcDirs = collectHsDirs distDir bi []
         in ( HCE.ComponentId (T.pack cid)
-           , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+           , ghcOptionsForBI packageDirectoryAbsPath distDir bi []
            , (Nothing, [])
            , srcDirs
            , HCE.FLib (T.pack (unUnqualComponentName (foreignLibName fl)))
            )
 
-      mkExe cid e =
+      mkExe cid e hiddenLibDirs =
         let bi      = (buildInfo e)
-            srcDirs = collectHsDirs distDir bi
+            srcDirs = collectHsDirs distDir bi []
             mainFP  = modulePath e
         in ( HCE.ComponentId (T.pack cid)
-           , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+           , ghcOptionsForBI packageDirectoryAbsPath distDir bi hiddenLibDirs
            , (Just mainFP, [])
            , srcDirs
            , HCE.Exe (T.pack (unUnqualComponentName (exeName e)))
            )
 
-      mkTest cid t =
+      mkTest cid t hiddenLibDirs =
         case testInterface t of
           TestSuiteExeV10 _ mainFP ->
             let bi      = testBuildInfo t
-                srcDirs = collectHsDirs distDir bi
+                srcDirs = collectHsDirs distDir bi []
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi hiddenLibDirs
                , (Just mainFP, [])
                , srcDirs
                , HCE.Test (T.pack (unUnqualComponentName (testName t)))
@@ -287,19 +296,19 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
           _ ->
             let bi = testBuildInfo t
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi hiddenLibDirs
                , (Nothing, [])
-               , collectHsDirs distDir bi
+               , collectHsDirs distDir bi []
                , HCE.Test (T.pack (unUnqualComponentName (testName t)))
                )
 
-      mkBench cid b =
+      mkBench cid b hiddenLibDirs =
         case benchmarkInterface b of
           BenchmarkExeV10 _ mainFP ->
             let bi      = benchmarkBuildInfo b
-                srcDirs = collectHsDirs distDir bi
+                srcDirs = collectHsDirs distDir bi []
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi hiddenLibDirs
                , (Just mainFP, [])
                , srcDirs
                , HCE.Bench (T.pack (unUnqualComponentName (benchmarkName b)))
@@ -307,9 +316,9 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
           _ ->
             let bi = benchmarkBuildInfo b
             in ( HCE.ComponentId (T.pack cid)
-               , ghcOptionsForBI packageDirectoryAbsPath distDir bi
+               , ghcOptionsForBI packageDirectoryAbsPath distDir bi hiddenLibDirs
                , (Nothing, [])
-               , collectHsDirs distDir bi
+               , collectHsDirs distDir bi []
                , HCE.Bench (T.pack (unUnqualComponentName (benchmarkName b)))
                )
 
@@ -369,8 +378,8 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
         , externalIdInfoMap = topLevelIdentifiersTrie
         }
   where
-    ghcOptionsForBI :: FilePath -> FilePath -> BuildInfo -> [String]
-    ghcOptionsForBI pkgDir distDir bi =
+    ghcOptionsForBI :: FilePath -> FilePath -> BuildInfo -> [String] -> [String]
+    ghcOptionsForBI pkgDir distDir bi hiddenLibDirs =
          hcOptions GHC bi
       ++ langOpts
       ++ extOpts
@@ -388,15 +397,16 @@ createPackageInfo packageDirectoryPath mbDistDirRelativePath sourceCodePreproces
             , cppOptions bi
             ]
         srcDirOpts =
-          concatMap (\d -> ["-i" <> absJoin d]) (collectHsDirs distDir bi)
+          concatMap (\d -> ["-i" <> absJoin d]) (collectHsDirs distDir bi hiddenLibDirs)
         absJoin d =
           if isAbsolute d then d else normalise (pkgDir </> d)
 
-    collectHsDirs :: FilePath -> BuildInfo -> [FilePath]
-    collectHsDirs distDir bi =
-      let sourceDirs = map getSymbolicPath (hsSourceDirs bi)
-          autogenDir = distDir <> "/build/autogen"
-       in sourceDirs <> [ autogenDir ]
+    collectHsDirs :: FilePath -> BuildInfo -> [FilePath] -> [FilePath]
+    collectHsDirs distDir bi hiddenLibDirs =
+      let sourceDirs = getSymbolicPath <$> hsSourceDirs bi
+          autogenDir = distDir <> "build/autogen"
+          subLibDirs = hiddenLibDirs
+       in sourceDirs <> [ autogenDir ] <> subLibDirs
 
 findSingleCabalFile :: FilePath -> IO FilePath
 findSingleCabalFile dir = do
