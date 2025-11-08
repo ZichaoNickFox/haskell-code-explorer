@@ -413,11 +413,16 @@ moduleLocationInfo unitState flags moduleNameMap currentPackageId compId moduleN
                 Nothing -> currentPackageLocation
             _ -> currentPackageLocation
 
+isFilePathSameAsModPath :: HCE.HaskellFilePath -> HCE.HaskellModulePath -> Bool
+isFilePathSameAsModPath haskellFilePath haskellModulePath = 
+  let filePath = HCE.getHaskellFilePath haskellFilePath
+      modulePath = HCE.getHaskellModulePath haskellModulePath
+  in  T.isSuffixOf modulePath filePath
+
 isDefinedInCurrentModule :: HCE.SourceCodeTransformation -> HCE.HaskellFilePath -> Bool
 isDefinedInCurrentModule transformation file =
   let includedFiles = HM.keys $ HCE.fileIndex transformation
-      modPath = HCE.getHaskellModulePath transformation.filePath
-   in HCE.getHaskellFilePath file == modPath || (file `elem` includedFiles)
+   in isFilePathSameAsModPath file transformation.filePath || (file `elem` includedFiles)
 
 nameLocationInfo ::
   UnitState

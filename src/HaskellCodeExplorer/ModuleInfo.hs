@@ -257,7 +257,7 @@ createModuleInfo (fileMap, defSiteMap, moduleNameMap) (flags, typecheckedModule,
           , externalIds = externalIds
           }
       , if not $ isHsBoot modulePath
-          then  (HM.union
+          then ( HM.union
                    (HM.fromList .
                     (( HCE.HaskellFilePath $ HCE.getHaskellModulePath modulePath
                      , modulePath) :) .

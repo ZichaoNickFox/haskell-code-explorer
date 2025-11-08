@@ -134,6 +134,7 @@ import System.FilePath
   , addTrailingPathSeparator
   , isAbsolute
   , joinPath
+  , makeRelative
   , normalise
   , replaceExtension
   , splitPath
@@ -749,9 +750,12 @@ findHaskellModulePath buildDir srcDirs modSum = do
               | otherwise -> do
                 return Nothing
             Nothing -> do
-              toHaskellModulePath modulePath
+              absBuildDir <- makeAbsolute buildDir
+              let relativePath = makeRelative absBuildDir modulePath
+              toHaskellModulePath relativePath
     Nothing -> do
       return Nothing
+    
 
 indexModule ::
      HCE.SourceCodePreprocessing

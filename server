@@ -1,7 +1,59 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd javascript
+npm run release
+cd ..
+
 haskell-code-server \
   --package . \
   --package ../hakyll \
   --package ../lrucache \
   --package ../pandoc \
   --package ../attoparsec \
+  --package ../pandoc \
+  --package ../parsec \
+  --package ../servant/servant \
+  --package ../servant/servant-auth/servant-auth-client \
+  --package ../servant/servant-auth/servant-auth-docs \
+  --package ../servant/servant-auth/servant-auth-server \
+  --package ../servant/servant-auth/servant-auth-swagger \
+  --package ../servant/servant-client \
+  --package ../servant/servant-client-core \
+  --package ../servant/servant-client-ghcjs \
+  --package ../servant/servant-conduit \
+  --package ../servant/servant-docs \
+  --package ../servant/servant-foreign \
+  --package ../servant/servant-http-streams \
+  --package ../servant/servant-machines \
+  --package ../servant/servant-pipes \
+  --package ../servant/servant-quickcheck \
+  --package ../servant/servant-server \
+  --package ../servant/servant-swagger \
+  --package ../wai/auto-update \
+  --package ../wai/mime-types \
+  --package ../wai/recv \
+  --package ../wai/time-manager \
+  --package ../wai/wai \
+  --package ../wai/wai-app-static \
+  --package ../wai/wai-conduit \
+  --package ../wai/wai-extra \
+  --package ../wai/wai-frontend-monadcgi \
+  --package ../wai/wai-http2-extra \
+  --package ../wai/wai-websockets \
+  --package ../wai/warp \
+  --package ../wai/warp-quic \
+  --package ../wai/warp-tls \
+  --package ../cabal/Cabal-syntax \
+  --package ../cabal/Cabal \
+  --package ../cabal/Cabal-described \
+  --package ../cabal/Cabal-QuickCheck \
+  --package ../cabal/Cabal-tests \
+  --package ../cabal/Cabal-tree-diff \
+  --package ../cabal/cabal-benchmarks \
+  --package ../cabal/cabal-install-solver \
+  --package ../cabal/cabal-install \
+  --package ../cabal/cabal-testsuite \
+  --package ../cabal/solver-benchmarks \
   --port 8080

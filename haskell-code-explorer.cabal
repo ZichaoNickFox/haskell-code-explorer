@@ -20,8 +20,7 @@ library
                  , HaskellCodeExplorer.AST.TypecheckedSource
   hs-source-dirs: src
   ghc-options:   -Wall -O2 -funbox-strict-fields
-  build-depends: IntervalMap
-               , aeson
+  build-depends: aeson
                , attoparsec
                , base
                , blaze-html
@@ -34,22 +33,23 @@ library
                , directory
                , directory-tree
                , exceptions
+               , extra
+               , fast-logger
                , filemanip
                , filepath
                , haddock-library
                , hashable
+               , IntervalMap
                , ghc
                , ghc-paths
+               , monad-logger
                , mtl
                , process
                , syb
-               , uniplate
                , text
+               , uniplate
                , unordered-containers
                , vector
-               , fast-logger
-               , monad-logger
-               , extra
 
 executable haskell-code-indexer
   main-is:          Indexer.hs
@@ -58,8 +58,7 @@ executable haskell-code-indexer
   autogen-modules:  Paths_haskell_code_explorer
   hs-source-dirs:   app
   default-extensions: MonoLocalBinds
-  build-depends:     IntervalMap
-                   , aeson
+  build-depends:     aeson
                    , base
                    , bytestring
                    , Cabal
@@ -74,6 +73,7 @@ executable haskell-code-indexer
                    , ghc
                    , haskell-code-explorer
                    , hspec
+                   , IntervalMap
                    , monad-logger
                    , optparse-applicative
                    , os-string
@@ -90,44 +90,44 @@ executable haskell-code-server
   ghc-options:        -Wall -O2 -rtsopts -funbox-strict-fields
   hs-source-dirs: app,src
   other-modules: HaskellCodeExplorer.Types, Store
-  build-depends:     IntervalMap
-                   , aeson
+  build-depends:     aeson
                    , base
+                   , blaze-html
                    , bytestring
                    , cereal
                    , containers
+                   , data-default
                    , deepseq
                    , directory
                    , exceptions
+                   , fast-logger
+                   , file-embed
                    , filemanip
                    , filepath
-                   , blaze-html
+                   , IntervalMap
                    , text
-                   , unordered-containers
-                   , hashable
-                   , vector
-                   , wai
-                   , syb
                    , haddock-library
+                   , hashable
+                   , http-types
+                   , http-api-data
+                   , lens
+                   , monad-logger
+                   , optparse-applicative
+                   , pagination
+                   , mime-types
+                   , mmap
+                   , mtl
+                   , lens-aeson
                    , servant
                    , servant-server
-                   , mime-types
-                   , mtl
+                   , syb
+                   , unordered-containers
+                   , uri-encode
+                   , vector
+                   , wai
                    , wai-extra
                    , wai-middleware-static
                    , warp
-                   , http-types
-                   , http-api-data
-                   , fast-logger
-                   , monad-logger
-                   , optparse-applicative
-                   , data-default
-                   , pagination
-                   , file-embed
-                   , mmap
-                   , lens
-                   , uri-encode
-                   , lens-aeson
                    , wreq
   build-depends: ghc-compact
 
@@ -136,20 +136,21 @@ test-suite test
   ghc-options:    -Wall
   hs-source-dirs: test
   main-is:        Main.hs
-  build-depends: IntervalMap
-               , QuickCheck
+  build-depends: 
                , attoparsec
                , base
                , bytestring
                , containers
                , directory
                , filepath
+               , haskell-code-explorer
                , hspec
+               , IntervalMap
+               , monad-logger
+               , process
+               , QuickCheck
+               , syb
                , text
                , uniplate
                , unordered-containers
-               , monad-logger
-               , process
                , vector
-               , syb
-               , haskell-code-explorer
