@@ -5,11 +5,11 @@ set -euo pipefail
 stack build
 stack install
 
-rm -rf ./.haskell-code-explorer
-stack --stack-yaml ../haskell-code-explorer/stack.yaml exec -- haskell-code-indexer -v --dist .stack-work/dist/aarch64-osx/ghc-9.10.2/ -p . --before-preprocessing
+# rm -rf ./.haskell-code-explorer
+# stack --stack-yaml ../haskell-code-explorer/stack.yaml exec -- haskell-code-indexer -v --dist .stack-work/dist/aarch64-osx/ghc-9.10.2/ -p . --before-preprocessing
 
-rm -rf ../hakyll/.haskell-code-explorer
-stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v --dist ../hakyll/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p  ../hakyll --before-preprocessing
+# rm -rf ../hakyll/.haskell-code-explorer
+# stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v --dist ../hakyll/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p  ../hakyll --before-preprocessing
 
 # rm -rf ../lrucache/.haskell-code-explorer
 # stack --stack-yaml ../lrucache/stack.yaml exec -- haskell-code-indexer -v --dist ../lrucache/dist-newstyles/dist/aarch64-osx/ghc-9.10.2/ -p ../lrucache --before-preprocessing
@@ -23,50 +23,50 @@ stack --stack-yaml ../hakyll/stack.yaml exec -- haskell-code-indexer -v --dist .
 # rm -rf ../parsec/.haskell-code-explorer
 # stack --stack-yaml ../parsec/stack.yaml exec -- haskell-code-indexer -v --dist ../parsec/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../parsec --before-preprocessing
 
-# rm -rf ../hakyll/.haskell-code-explorer
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-client/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-client --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-docs/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-docs --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-server/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-server --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-swagger/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-swagger --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-client/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-client --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-client-core/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-client-core --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-client-ghcjs/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-client-ghcjs --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-conduit/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-conduit --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-docs/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-docs --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-foreign/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-foreign --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-http-streams/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-http-streams --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-machines/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-machines --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-pipes/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-pipes --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-quickcheck/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-quickcheck --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-server/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-server --before-preprocessing
-# stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-swagger/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-swagger --before-preprocessing
+rm -rf ../wai/.haskell-code-explorer
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/auto-update/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/auto-update --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/mime-types/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/mime-types --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/recv/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/recv --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/time-manager/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/time-manager --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-app-static/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-app-stat --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-conduit/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-conduit --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-extra/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-extra --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-frontend-monadcgi/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-frontend-mona --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-http2-extra/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-http2-extra --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-websockets/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-websockets --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/warp/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/warp --ghc "-fno-allow-sendfilefd" --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/warp-quic/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/warp-quic --before-preprocessing
+stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/warp-tls/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/warp-tls --before-preprocessing
 
-# rm -rf ../wai/.haskell-code-explorer
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/auto-update/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/auto-update --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/mime-types/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/mime-types --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/recv/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/recv --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/time-manager/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/time-manager --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-app-static/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-app-stat --before-preprocessingic
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-conduit/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-conduit --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-extra/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-extra --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-frontend-monadcgi/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-frontend-mona --before-preprocessingdcgi
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-http2-extra/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-http2-extra --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/wai-websockets/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/wai-websockets --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/warp/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/warp --ghc "-fno-allow-sendfilefd" --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/warp-quic/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/warp-quic --before-preprocessing
-# stack --stack-yaml ../wai/stack.yaml exec -- haskell-code-indexer -v --dist ../wai/warp-tls/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../wai/warp-tls --before-preprocessing
+rm -rf ../cabal/.haskell-code-explorer
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-syntax/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-syntax --ghc "-i./.stack-work/dist/aarch64-osx/ghc-9.10.2/build"  --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-described/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-described --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-QuickCheck/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-QuickCheck --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-tests/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-tests --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-tree-diff/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-tree-diff --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-benchmarks/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-benchmarks --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-install-solver/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-install-solver --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-install/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-install --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-testsuite/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-testsuite --before-preprocessing
+stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/solver-benchmarks/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/solver-benchmarks --before-preprocessing
 
-# rm -rf ../cabal/.haskell-code-explorer
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-syntax/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-syntax --ghc "-i./.stack-work/dist/aarch64-osx/ghc-9.10.2/build"  --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-described/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-described --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-QuickCheck/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-QuickCheck --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-tests/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-tests --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/Cabal-tree-diff/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/Cabal-tree-diff --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-benchmarks/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-benchmarks --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-install-solver/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-install-solver --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-install/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-install --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/cabal-testsuite/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/cabal-testsuite --before-preprocessing
-# stack --stack-yaml ../cabal/stack.yaml exec -- haskell-code-indexer -v --dist ../cabal/solver-benchmarks/.stack-work/dist/aarch64-osx/ghc-9.10.2/ -p ../cabal/solver-benchmarks --before-preprocessing
+rm -rf ../servant/.haskell-code-explorer
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-client/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-client --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-docs/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-docs --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-server/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-server --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-auth/servant-auth-swagger/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-auth/servant-auth-swagger --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-client/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-client --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-client-core/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-client-core --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-client-ghcjs/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-client-ghcjs --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-conduit/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-conduit --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-docs/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-docs --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-foreign/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-foreign --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-http-streams/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-http-streams --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-machines/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-machines --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-pipes/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-pipes --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-quickcheck/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-quickcheck --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-server/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-server --before-preprocessing
+stack --stack-yaml ../servant/stack.yaml exec -- haskell-code-indexer -v --dist ../servant/servant-swagger/.stack-work/install/aarch64-osx/ghc-9.10.2/ -p ../servant/servant-swagger --before-preprocessing

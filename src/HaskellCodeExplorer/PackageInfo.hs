@@ -442,9 +442,12 @@ buildDirectoryTree path ignoreDirectories isHaskellModule = do
       case splitPath p of
         _x:xs -> joinPath xs
         [] -> ""
+    filterHaskellModule :: HCE.DirTree -> Bool
+    filterHaskellModule (HCE.File _ _ False) = False
+    filterHaskellModule _ = True
     toDirTree :: DT.DirTree FilePath -> HCE.DirTree
     toDirTree (DT.Dir name contents) =
-      HCE.Dir name (map toDirTree . filter (not . DT.failed) $ contents)
+      HCE.Dir name (filter filterHaskellModule $ map toDirTree . filter (not . DT.failed) $ contents)
     toDirTree (DT.File name filePath) =
       HCE.File name filePath (isHaskellModule filePath)
     toDirTree (DT.Failed name err) =
