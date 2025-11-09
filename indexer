@@ -5,6 +5,8 @@ set -euo pipefail
 stack build
 stack install
 
+set +euo pipefail
+
 # rm -rf ./.haskell-code-explorer
 # stack --stack-yaml ../haskell-code-explorer/stack.yaml exec -- haskell-code-indexer -v --dist .stack-work/dist/aarch64-osx/ghc-9.10.2/ -p . --before-preprocessing
 
