@@ -12,6 +12,8 @@ Examples:
 
 ![Haskell Code Explorer](https://haskell-code-explorer.mfix.io/screenshot.png)
 
+- for 9.10.2 [http://www.haskell.fan](http://www.haskell.fun)
+
 The public instance of Haskell Code Explorer is available at [https://haskell-code-explorer.mfix.io](https://haskell-code-explorer.mfix.io). It contains core libraries (ghc, base, etc.) and a subset of packages from a Stackage snapshot.
 
 Haskell Code Explorer consists of an indexer, an HTTP server, and a JavaScript application. The indexer uses GHC API to create a data structure that contains detailed information about the source code of a Cabal package. The HTTP server reads that data structure into memory and responds to HTTP requests from the JavaScript application.
