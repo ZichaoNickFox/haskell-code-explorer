@@ -6,6 +6,9 @@ cd javascript
 npm run release
 cd ..
 
+stack build
+stack install
+
 haskell-code-server \
   --package . \
   --package ../hakyll \
