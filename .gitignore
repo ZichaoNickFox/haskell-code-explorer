@@ -23,4 +23,3 @@ stack*.yaml.lock
 *.dyn_o
 
 vendor
-distribute

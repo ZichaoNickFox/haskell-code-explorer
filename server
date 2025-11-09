@@ -7,7 +7,7 @@ npm run release
 cd ..
 
 stack build
-stack install
+stack install haskell-code-explorer:exe:haskell-code-server
 
 haskell-code-server \
   --package . \

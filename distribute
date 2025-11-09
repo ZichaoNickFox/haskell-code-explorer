@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONTROL_PATH="$HOME/.ssh/cm_${HCE_SERVER_HOST//:/_}"
+
+rm -f "$CONTROL_PATH" 2>/dev/null || true
+ssh -o ControlMaster=yes -o ControlPersist=600 -o ControlPath="$CONTROL_PATH" -fN "$HCE_SERVER_HOST"
+RSYNC_SSH="ssh -o ControlPath=$CONTROL_PATH -o ControlMaster=no"
+
+packages=(
+  haskell-code-explorer
+  hakyll
+  lrucache
+  pandoc
+  attoparsec
+  parsec
+  servant/servant
+  servant/servant-auth/servant-auth-client
+  servant/servant-auth/servant-auth-docs
+  servant/servant-auth/servant-auth-server
+  servant/servant-auth/servant-auth-swagger
+  servant/servant-client
+  servant/servant-client-core
+  servant/servant-client-ghcjs
+  servant/servant-conduit
+  servant/servant-docs
+  servant/servant-foreign
+  servant/servant-http-streams
+  servant/servant-machines
+  servant/servant-pipes
+  servant/servant-quickcheck
+  servant/servant-server
+  servant/servant-swagger
+  wai/auto-update
+  wai/mime-types
+  wai/recv
+  wai/time-manager
+  wai/wai
+  wai/wai-app-static
+  wai/wai-conduit
+  wai/wai-extra
+  wai/wai-frontend-monadcgi
+  wai/wai-http2-extra
+  wai/wai-websockets
+  wai/warp
+  wai/warp-quic
+  wai/warp-tls
+  cabal/Cabal-syntax
+  cabal/Cabal
+  cabal/Cabal-described
+  cabal/Cabal-QuickCheck
+  cabal/Cabal-tests
+  cabal/Cabal-tree-diff
+  cabal/cabal-benchmarks
+  cabal/cabal-install-solver
+  cabal/cabal-install
+  cabal/cabal-testsuite
+  cabal/solver-benchmarks
+)
+
+for package in "${packages[@]}"; do
+  src="../$package/.haskell-code-explorer"
+  dest_dir="$HCE_SERVER_DIR/$package/"
+  $RSYNC_SSH "$HCE_SERVER_HOST" "mkdir -p '$dest_dir'"
+
+  echo "→ syncing $src → $HCE_SERVER_HOST:$dest_dir"
+  rsync --ignore-times -avz -e "$RSYNC_SSH" "$src" "$HCE_SERVER_HOST:$dest_dir"
+done
+
+ssh -o ControlPath="$CONTROL_PATH" -O exit "$HCE_SERVER_HOST" || true
